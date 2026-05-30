@@ -939,6 +939,13 @@ img {
   font-size: 16px;
 }
 
+.form-hint {
+  margin: 0 0 12px;
+  color: #64748b;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
 .checkbox-row {
   display: flex;
   align-items: center;

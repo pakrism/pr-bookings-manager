@@ -5,6 +5,10 @@ import {
   getWhatsappLink,
   totalPersons,
 } from '../../utils/helpers';
+import {
+  getBookingProfit,
+  hasBookingFinancials,
+} from '../../utils/bookingFinancials';
 
 function BookingList({
   bookings,
@@ -86,6 +90,8 @@ function BookingList({
               <th>Booked By</th>
               <th>Status</th>
               <th>Price</th>
+              <th>Expenses</th>
+              <th>Profit</th>
               <th>Balance</th>
               <th>Actions</th>
             </tr>
@@ -139,6 +145,18 @@ function BookingList({
                   </td>
 
                   <td>{formatCurrency(booking.packagePrice)}</td>
+
+                  <td>
+                    {hasBookingFinancials(booking)
+                      ? formatCurrency(booking.totalExpenses)
+                      : '-'}
+                  </td>
+
+                  <td>
+                    {hasBookingFinancials(booking)
+                      ? formatCurrency(getBookingProfit(booking))
+                      : '-'}
+                  </td>
 
                   <td>
                     <span className="balance-text">

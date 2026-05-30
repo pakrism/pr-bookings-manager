@@ -352,6 +352,39 @@ function BookingForm({
               </div>
 
               <div className="section-block">
+                <div className="form-section-title">📊 Financials</div>
+                <p className="form-hint">
+                  Profit = Package Price − Total Expenses. Editing either field
+                  updates the other.
+                </p>
+
+                <div className="form-grid-2">
+                  <div className="form-field">
+                    <label>Total Expenses (PKR)</label>
+                    <input
+                      className="form-input"
+                      type="number"
+                      min="0"
+                      name="totalExpenses"
+                      value={bookingForm.totalExpenses}
+                      onChange={onChange}
+                    />
+                  </div>
+
+                  <div className="form-field">
+                    <label>Total Profit (PKR)</label>
+                    <input
+                      className="form-input"
+                      type="number"
+                      name="totalProfit"
+                      value={bookingForm.totalProfit}
+                      onChange={onChange}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="section-block">
                 <div className="form-grid-2">
                   <div className="form-field">
                     <label>Booking Status *</label>

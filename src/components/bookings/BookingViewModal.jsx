@@ -1,5 +1,9 @@
 import { useEffect } from 'react';
 import { formatCurrency, getStatusBadgeClass } from '../../utils/helpers';
+import {
+  getBookingProfit,
+  hasBookingFinancials,
+} from '../../utils/bookingFinancials';
 
 function BookingViewModal({ booking, onClose }) {
   useEffect(() => {
@@ -127,6 +131,18 @@ function BookingViewModal({ booking, onClose }) {
               <div>
                 <strong>Balance:</strong>{' '}
                 {formatCurrency(booking.remainingAmount)}
+              </div>
+              <div>
+                <strong>Total Expenses:</strong>{' '}
+                {hasBookingFinancials(booking)
+                  ? formatCurrency(booking.totalExpenses)
+                  : '-'}
+              </div>
+              <div>
+                <strong>Total Profit:</strong>{' '}
+                {hasBookingFinancials(booking)
+                  ? formatCurrency(getBookingProfit(booking))
+                  : '-'}
               </div>
               <div>
                 <strong>Status:</strong>{' '}

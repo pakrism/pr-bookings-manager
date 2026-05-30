@@ -12,6 +12,7 @@ import LoginPage from './components/auth/LoginPage';
 
 import { emptyBookingForm, emptyPackageForm } from './data/constants';
 import { getNextBookingRef, formatCurrency } from './utils/helpers';
+import { syncFinancials, getBookingProfit } from './utils/bookingFinancials';
 
 import {
   getApprovedUserProfile,
@@ -149,6 +150,11 @@ function App() {
     0
   );
 
+  const totalProfit = bookings.reduce((sum, booking) => {
+    const profit = getBookingProfit(booking);
+    return sum + (profit ?? 0);
+  }, 0);
+
   const upcomingBookings = bookings.filter(
     (booking) =>
       booking.bookingStatus === 'Upcoming' ||
@@ -257,10 +263,7 @@ function App() {
   function handleBookingInputChange(event) {
     const { name, value } = event.target;
 
-    setBookingForm((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
+    setBookingForm((prev) => syncFinancials(prev, name, value));
   }
 
   function handleBookingPackageChange(event) {
@@ -403,6 +406,17 @@ function App() {
     const packagePrice = Number(bookingForm.packagePrice || 0);
     const advanceReceived = Number(bookingForm.advanceReceived || 0);
     const remainingAmount = Math.max(packagePrice - advanceReceived, 0);
+    const hasFinancialInput =
+      bookingForm.totalExpenses !== '' || bookingForm.totalProfit !== '';
+    const financialFields = hasFinancialInput
+      ? {
+          totalExpenses: Number(bookingForm.totalExpenses || 0),
+          totalProfit: packagePrice - Number(bookingForm.totalExpenses || 0),
+        }
+      : {
+          totalExpenses: null,
+          totalProfit: null,
+        };
     const existingBooking = bookings.find(
       (item) => item.id === editingBookingId
     );
@@ -432,6 +446,7 @@ function App() {
           packagePrice,
           advanceReceived,
           remainingAmount,
+          ...financialFields,
           specialNotes: bookingForm.specialNotes.trim(),
           bookingStatus: bookingForm.bookingStatus,
           bookedBy: bookingForm.bookedBy,
@@ -469,6 +484,7 @@ function App() {
           packagePrice,
           advanceReceived,
           remainingAmount,
+          ...financialFields,
           specialNotes: bookingForm.specialNotes.trim(),
           bookingStatus: bookingForm.bookingStatus,
           bookedBy: bookingForm.bookedBy,
@@ -514,6 +530,8 @@ function App() {
       groupTypeNote: booking.groupTypeNote || '',
       packagePrice: booking.packagePrice || '',
       advanceReceived: booking.advanceReceived || '',
+      totalExpenses: booking.totalExpenses ?? '',
+      totalProfit: booking.totalProfit ?? '',
       specialNotes: booking.specialNotes || '',
       bookingStatus: booking.bookingStatus || 'Upcoming',
       bookedBy: booking.bookedBy || '',
@@ -580,6 +598,16 @@ function App() {
               </div>
             </div>
             <div className="dashboard-card-icon green">📈</div>
+          </div>
+
+          <div className="dashboard-card">
+            <div>
+              <div className="dashboard-card-label">Total Profit</div>
+              <div className="dashboard-card-value">
+                {formatCurrency(totalProfit)}
+              </div>
+            </div>
+            <div className="dashboard-card-icon green">💰</div>
           </div>
         </div>
 

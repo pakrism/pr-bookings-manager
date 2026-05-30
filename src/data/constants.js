@@ -67,6 +67,8 @@ export const emptyBookingForm = {
   groupTypeNote: '',
   packagePrice: '',
   advanceReceived: '',
+  totalExpenses: '',
+  totalProfit: '',
   specialNotes: '',
   bookingStatus: 'Upcoming',
   bookedBy: '',
