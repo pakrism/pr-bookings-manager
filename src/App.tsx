@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import './App.css';
 
 import Sidebar from './components/layout/Sidebar';
@@ -7,11 +7,13 @@ import PackageList from './components/packages/PackageList';
 import BookingForm from './components/bookings/BookingForm';
 import BookingList from './components/bookings/BookingList';
 import BookingViewModal from './components/bookings/BookingViewModal';
+import DepartureRemindersModal from './components/bookings/DepartureRemindersModal';
 import SchedulePage from './components/schedule/SchedulePage';
 import LoginPage from './components/auth/LoginPage';
+import { Toast } from './components/common/Toast';
 
 import { emptyBookingForm, emptyPackageForm } from './data/constants';
-import { getNextBookingRef, formatCurrency } from './utils/helpers';
+import { getNextBookingRef, formatCurrency, totalPersons } from './utils/helpers';
 import {
   syncFinancials,
   getBookingProfit,
@@ -22,6 +24,22 @@ import {
   resolveBookingStatus,
 } from './utils/bookingStatus';
 import { toFormTourType } from './utils/tourType';
+import { getBookingBalance } from './utils/bookingBalance';
+import { getBookingSyncPatch } from './utils/bookingSync';
+import {
+  emptyPaymentRow,
+  getPaymentsFromBooking,
+  getTotalPaid,
+  normalizeFormPayments,
+  computeRemainingAmount,
+} from './utils/payments';
+import {
+  appendAuditLog,
+  buildAuditEntry,
+  buildBookingAuditSummary,
+} from './utils/auditLog';
+import { downloadBookingsCsv } from './utils/exportBookingsCsv';
+import { filterBookings } from './utils/bookingFilters';
 
 import {
   getApprovedUserProfile,
@@ -57,7 +75,10 @@ function App() {
   const [bookings, setBookings] = useState([]);
 
   const [packageForm, setPackageForm] = useState(emptyPackageForm);
-  const [bookingForm, setBookingForm] = useState(emptyBookingForm);
+  const [bookingForm, setBookingForm] = useState({
+    ...emptyBookingForm,
+    payments: [emptyPaymentRow()],
+  });
 
   const [editingPackageId, setEditingPackageId] = useState(null);
   const [editingBookingId, setEditingBookingId] = useState(null);
@@ -69,6 +90,23 @@ function App() {
 
   const [bookingSearch, setBookingSearch] = useState('');
   const [bookingStatusFilter, setBookingStatusFilter] = useState('All Status');
+  const [isSavingBooking, setIsSavingBooking] = useState(false);
+  const [toast, setToast] = useState(null);
+  const [showRemindersModal, setShowRemindersModal] = useState(false);
+
+  const bookingSyncStarted = useRef(false);
+  const isBookingModalOpenRef = useRef(false);
+
+  const isAdmin = userProfile?.role !== 'viewer';
+
+  useEffect(() => {
+    isBookingModalOpenRef.current = isBookingModalOpen;
+  }, [isBookingModalOpen]);
+
+  function showToast(message, type = 'success') {
+    setToast({ message, type });
+    window.setTimeout(() => setToast(null), 3500);
+  }
 
   useEffect(() => {
     const unsubscribe = watchAuth(async (firebaseUser) => {
@@ -123,8 +161,36 @@ function App() {
     return () => {
       unsubPackages();
       unsubBookings();
+      bookingSyncStarted.current = false;
     };
   }, [authUser, userProfile]);
+
+  useEffect(() => {
+    if (!authUser || !userProfile || !bookings.length) return undefined;
+    if (isBookingModalOpenRef.current) return undefined;
+
+    const timer = window.setTimeout(async () => {
+      if (bookingSyncStarted.current) return;
+      bookingSyncStarted.current = true;
+
+      const updates = bookings
+        .map((booking) => {
+          const patch = getBookingSyncPatch(booking);
+          return patch ? { id: booking.id, patch } : null;
+        })
+        .filter(Boolean);
+
+      for (const item of updates) {
+        try {
+          await updateBooking(item.id, item.patch);
+        } catch (error) {
+          console.error('Booking sync error:', error);
+        }
+      }
+    }, 2000);
+
+    return () => window.clearTimeout(timer);
+  }, [authUser, userProfile, bookings]);
 
   const pageMeta = useMemo(() => {
     if (screen === 'dashboard') {
@@ -170,17 +236,14 @@ function App() {
   }, 0);
 
   const totalAdvance = bookings.reduce(
-    (sum, booking) => sum + Number(booking.advanceReceived || 0),
+    (sum, booking) => sum + getTotalPaid(booking),
     0
   );
 
-  const outstandingBalance = bookings.reduce((sum, booking) => {
-    const balance =
-      Number(booking.remainingAmount || 0) ||
-      Number(booking.packagePrice || 0) -
-        Number(booking.advanceReceived || 0);
-    return sum + balance;
-  }, 0);
+  const outstandingBalance = bookings.reduce(
+    (sum, booking) => sum + getBookingBalance(booking),
+    0
+  );
 
   const profitMargin =
     totalRevenue > 0 ? Math.round((totalProfit / totalRevenue) * 100) : 0;
@@ -229,7 +292,7 @@ function App() {
       await logoutUser();
     } catch (error) {
       console.error('Sign out error:', error);
-      alert('Failed to sign out.');
+      showToast('Failed to sign out.', 'error');
     }
   }
 
@@ -260,9 +323,27 @@ function App() {
   }
 
   function resetBookingForm() {
-    setBookingForm(emptyBookingForm);
+    setBookingForm({
+      ...emptyBookingForm,
+      payments: [emptyPaymentRow()],
+    });
     setEditingBookingId(null);
   }
+
+  function getSuggestedPackagePrice(form = bookingForm) {
+    const selectedPackage = packages.find(
+      (item) => item.id === form.packageTemplateId
+    );
+    if (!selectedPackage) return 0;
+
+    const pax = totalPersons(form);
+    return Number(selectedPackage.pricePerPerson || 0) * pax;
+  }
+
+  const suggestedPackagePrice = useMemo(
+    () => getSuggestedPackagePrice(bookingForm),
+    [bookingForm, packages]
+  );
 
   function openNewPackageModal() {
     resetPackageForm();
@@ -296,7 +377,52 @@ function App() {
   function handleBookingInputChange(event) {
     const { name, value } = event.target;
 
-    setBookingForm((prev) => syncFinancials(prev, name, value));
+    setBookingForm((prev) => {
+      let next = syncFinancials(prev, name, value);
+
+      if (name === 'packagePrice') {
+        next = { ...next, packagePriceTouched: true };
+      }
+
+      if (['adults', 'children', 'infants'].includes(name) && !next.packagePriceTouched) {
+        const suggested = getSuggestedPackagePrice(next);
+        if (suggested > 0) {
+          next = { ...next, packagePrice: String(suggested) };
+        }
+      }
+
+      return next;
+    });
+  }
+
+  function handlePaymentChange(index, field, value) {
+    setBookingForm((prev) => {
+      const payments = [...(prev.payments || [])];
+      payments[index] = { ...payments[index], [field]: value };
+      return { ...prev, payments };
+    });
+  }
+
+  function handleAddPayment() {
+    setBookingForm((prev) => ({
+      ...prev,
+      payments: [...(prev.payments || []), emptyPaymentRow()],
+    }));
+  }
+
+  function handleRemovePayment(index) {
+    setBookingForm((prev) => ({
+      ...prev,
+      payments: (prev.payments || []).filter((_, i) => i !== index),
+    }));
+  }
+
+  function handleApplySuggestedPrice() {
+    setBookingForm((prev) => ({
+      ...prev,
+      packagePrice: String(getSuggestedPackagePrice(prev) || ''),
+      packagePriceTouched: false,
+    }));
   }
 
   function handleBookingPackageChange(event) {
@@ -316,27 +442,36 @@ function App() {
       return;
     }
 
-    setBookingForm((prev) => ({
-      ...prev,
-      packageTemplateId: selectedPackage.id,
-      packageName: selectedPackage.name,
-      destination: selectedPackage.destination,
-      duration: selectedPackage.duration,
-      type: selectedPackage.type,
-      inclusionsText: selectedPackage.inclusionsText,
-    }));
+    setBookingForm((prev) => {
+      const pax = totalPersons(prev);
+      const priceSuggestion = Number(selectedPackage.pricePerPerson || 0) * pax;
+
+      return {
+        ...prev,
+        packageTemplateId: selectedPackage.id,
+        packageName: selectedPackage.name,
+        destination: selectedPackage.destination,
+        duration: selectedPackage.duration,
+        type: selectedPackage.type,
+        inclusionsText: selectedPackage.inclusionsText,
+        packagePrice:
+          !prev.packagePriceTouched && priceSuggestion > 0
+            ? String(priceSuggestion)
+            : prev.packagePrice,
+      };
+    });
   }
 
   async function handleSavePackage(event) {
     event.preventDefault();
 
     if (!packageForm.name.trim()) {
-      alert('Please enter package name.');
+      showToast('Please enter package name.', 'error');
       return;
     }
 
     if (!packageForm.destination.trim()) {
-      alert('Please enter location.');
+      showToast('Please enter location.', 'error');
       return;
     }
 
@@ -368,10 +503,14 @@ function App() {
       }
 
       closePackageModal();
+      showToast(
+        editingPackageId ? 'Package updated.' : 'Package created.'
+      );
     } catch (error) {
       console.error('Save package error:', error);
-      alert(
-        `Failed to save package: ${error.code || ''} ${error.message || ''}`
+      showToast(
+        `Failed to save package: ${error.code || ''} ${error.message || ''}`,
+        'error'
       );
     }
   }
@@ -398,7 +537,10 @@ function App() {
     );
 
     if (linkedBookings.length) {
-      alert('This package is linked with bookings and cannot be deleted.');
+      showToast(
+        'This package is linked with bookings and cannot be deleted.',
+        'error'
+      );
       return;
     }
 
@@ -407,38 +549,59 @@ function App() {
 
     try {
       await removePackage(packageId);
+      showToast('Package deleted.');
     } catch (error) {
       console.error('Delete package error:', error);
-      alert('Failed to delete package.');
+      showToast('Failed to delete package.', 'error');
     }
   }
 
   async function handleSaveBooking(event) {
     event.preventDefault();
 
+    if (!isAdmin) {
+      showToast('You have read-only access.', 'error');
+      return;
+    }
+
     if (!bookingForm.guestName.trim()) {
-      alert('Please enter guest name.');
+      showToast('Please enter guest name.', 'error');
       return;
     }
 
     if (!bookingForm.packageTemplateId) {
-      alert('Please select a package.');
+      showToast('Please select a package.', 'error');
       return;
     }
 
     if (!bookingForm.travelStartDate) {
-      alert('Please select departure date.');
+      showToast('Please select departure date.', 'error');
       return;
     }
 
     if (!bookingForm.travelEndDate) {
-      alert('Please select return date.');
+      showToast('Please select return date.', 'error');
       return;
     }
 
     const packagePrice = Number(bookingForm.packagePrice || 0);
-    const advanceReceived = Number(bookingForm.advanceReceived || 0);
-    const remainingAmount = Math.max(packagePrice - advanceReceived, 0);
+    const payments = normalizeFormPayments(bookingForm.payments);
+    const advanceReceived = payments.reduce(
+      (sum, payment) => sum + payment.amount,
+      0
+    );
+    const bookingStatus = bookingForm.statusOverride
+      ? bookingForm.statusOverride
+      : computeBookingStatus(
+          bookingForm.travelStartDate,
+          bookingForm.travelEndDate
+        );
+    const remainingAmount = computeRemainingAmount(
+      packagePrice,
+      advanceReceived,
+      bookingStatus
+    );
+
     const hasFinancialInput =
       bookingForm.totalExpenses !== '' || bookingForm.totalProfit !== '';
     const financialFields = hasFinancialInput
@@ -450,104 +613,108 @@ function App() {
           totalExpenses: null,
           totalProfit: null,
         };
-    const bookingStatus = bookingForm.statusOverride
-      ? bookingForm.statusOverride
-      : computeBookingStatus(
-          bookingForm.travelStartDate,
-          bookingForm.travelEndDate
-        );
 
     const existingBooking = bookings.find(
       (item) => item.id === editingBookingId
     );
 
+    const bookingPayload = {
+      guestName: bookingForm.guestName.trim(),
+      whatsappNumber: bookingForm.whatsappNumber.trim(),
+      packageTemplateId: bookingForm.packageTemplateId,
+      packageName: bookingForm.packageName,
+      destination: bookingForm.destination,
+      duration: bookingForm.duration,
+      type: bookingForm.type,
+      inclusionsText: bookingForm.inclusionsText,
+      travelStartDate: bookingForm.travelStartDate,
+      travelEndDate: bookingForm.travelEndDate,
+      departureCity: bookingForm.departureCity.trim(),
+      transport: bookingForm.transport,
+      accommodation: bookingForm.accommodation.trim(),
+      adults: Number(bookingForm.adults || 0),
+      children: Number(bookingForm.children || 0),
+      infants: Number(bookingForm.infants || 0),
+      groupType: bookingForm.groupType,
+      groupTypeNote: bookingForm.groupTypeNote.trim(),
+      packagePrice,
+      payments,
+      advanceReceived,
+      remainingAmount,
+      ...financialFields,
+      specialNotes: bookingForm.specialNotes.trim(),
+      bookingStatus,
+      bookedBy: bookingForm.bookedBy,
+      updatedByUid: authUser.uid,
+      updatedByName: userProfile.fullName,
+    };
+
+    setIsSavingBooking(true);
+
     try {
       if (editingBookingId) {
         const updatedBooking = {
           bookingRef: existingBooking?.bookingRef || '',
-          guestName: bookingForm.guestName.trim(),
-          whatsappNumber: bookingForm.whatsappNumber.trim(),
-          packageTemplateId: bookingForm.packageTemplateId,
-          packageName: bookingForm.packageName,
-          destination: bookingForm.destination,
-          duration: bookingForm.duration,
-          type: bookingForm.type,
-          inclusionsText: bookingForm.inclusionsText,
-          travelStartDate: bookingForm.travelStartDate,
-          travelEndDate: bookingForm.travelEndDate,
-          departureCity: bookingForm.departureCity.trim(),
-          transport: bookingForm.transport,
-          accommodation: bookingForm.accommodation.trim(),
-          adults: Number(bookingForm.adults || 0),
-          children: Number(bookingForm.children || 0),
-          infants: Number(bookingForm.infants || 0),
-          groupType: bookingForm.groupType,
-          groupTypeNote: bookingForm.groupTypeNote.trim(),
-          packagePrice,
-          advanceReceived,
-          remainingAmount,
-          ...financialFields,
-          specialNotes: bookingForm.specialNotes.trim(),
-          bookingStatus,
-          bookedBy: bookingForm.bookedBy,
+          ...bookingPayload,
           createdByUid: existingBooking?.createdByUid || authUser.uid,
           createdByName: existingBooking?.createdByName || userProfile.fullName,
-          updatedByUid: authUser.uid,
-          updatedByName: userProfile.fullName,
           createdAt: existingBooking?.createdAt || null,
+          auditLog: appendAuditLog(
+            existingBooking?.auditLog,
+            buildAuditEntry({
+              action: 'updated',
+              byUid: authUser.uid,
+              byName: userProfile.fullName,
+              summary: buildBookingAuditSummary(existingBooking, bookingPayload),
+            })
+          ),
         };
 
         await updateBooking(editingBookingId, updatedBooking);
+        showToast('Booking updated.');
       } else {
         const bookingRef = await getNextBookingRefFromFirestore();
 
         const newBooking = {
           bookingRef,
-          guestName: bookingForm.guestName.trim(),
-          whatsappNumber: bookingForm.whatsappNumber.trim(),
-          packageTemplateId: bookingForm.packageTemplateId,
-          packageName: bookingForm.packageName,
-          destination: bookingForm.destination,
-          duration: bookingForm.duration,
-          type: bookingForm.type,
-          inclusionsText: bookingForm.inclusionsText,
-          travelStartDate: bookingForm.travelStartDate,
-          travelEndDate: bookingForm.travelEndDate,
-          departureCity: bookingForm.departureCity.trim(),
-          transport: bookingForm.transport,
-          accommodation: bookingForm.accommodation.trim(),
-          adults: Number(bookingForm.adults || 0),
-          children: Number(bookingForm.children || 0),
-          infants: Number(bookingForm.infants || 0),
-          groupType: bookingForm.groupType,
-          groupTypeNote: bookingForm.groupTypeNote.trim(),
-          packagePrice,
-          advanceReceived,
-          remainingAmount,
-          ...financialFields,
-          specialNotes: bookingForm.specialNotes.trim(),
-          bookingStatus,
-          bookedBy: bookingForm.bookedBy,
+          ...bookingPayload,
           createdByUid: authUser.uid,
           createdByName: userProfile.fullName,
-          updatedByUid: authUser.uid,
-          updatedByName: userProfile.fullName,
           createdAt: null,
+          auditLog: [
+            buildAuditEntry({
+              action: 'created',
+              byUid: authUser.uid,
+              byName: userProfile.fullName,
+              summary: 'Booking created',
+            }),
+          ],
         };
 
         await createBooking(newBooking);
+        showToast('Booking created.');
       }
 
       closeBookingModal();
     } catch (error) {
       console.error('Save booking error:', error);
-      alert(
-        `Failed to save booking: ${error.code || ''} ${error.message || ''}`
+      showToast(
+        `Failed to save booking: ${error.code || ''} ${error.message || ''}`,
+        'error'
       );
+    } finally {
+      setIsSavingBooking(false);
     }
   }
 
   function handleEditBooking(booking) {
+    const payments = getPaymentsFromBooking(booking).map((payment) => ({
+      id: payment.id,
+      amount: String(payment.amount ?? ''),
+      paidAt: payment.paidAt || '',
+      note: payment.note || '',
+    }));
+
     setEditingBookingId(booking.id);
     setBookingForm({
       guestName: booking.guestName || '',
@@ -569,7 +736,8 @@ function App() {
       groupType: booking.groupType || 'Solo',
       groupTypeNote: booking.groupTypeNote || '',
       packagePrice: booking.packagePrice || '',
-      advanceReceived: booking.advanceReceived || '',
+      packagePriceTouched: true,
+      payments: payments.length ? payments : [emptyPaymentRow()],
       totalExpenses: booking.totalExpenses ?? '',
       totalProfit: booking.totalProfit ?? '',
       specialNotes: booking.specialNotes || '',
@@ -587,14 +755,25 @@ function App() {
 
     try {
       await removeBooking(bookingId);
+      showToast('Booking deleted.');
     } catch (error) {
       console.error('Delete booking error:', error);
-      alert('Failed to delete booking.');
+      showToast('Failed to delete booking.', 'error');
     }
   }
 
+  function handleExportBookingsCsv() {
+    const filtered = filterBookings(
+      bookings,
+      bookingSearch,
+      bookingStatusFilter
+    );
+    downloadBookingsCsv(filtered);
+    showToast('Bookings CSV downloaded.');
+  }
+
   function handleResetLocalData() {
-    alert('Local reset is no longer used after Firestore sync.');
+    showToast('Local reset is no longer used after Firestore sync.', 'error');
   }
 
   function renderDashboard() {
@@ -602,9 +781,11 @@ function App() {
       <>
         <div className="page-actions">
           <div className="page-section-title">Overview</div>
-          <button className="header-action-btn" onClick={openNewBookingModal}>
-            + New Booking
-          </button>
+          {isAdmin && (
+            <button className="header-action-btn" onClick={openNewBookingModal}>
+              + New Booking
+            </button>
+          )}
         </div>
 
         <div className="dashboard-grid">
@@ -717,8 +898,12 @@ function App() {
             statusFilter="All Status"
             onSearchChange={() => {}}
             onStatusChange={() => {}}
+            onView={(booking) => setViewBooking(booking)}
             onEdit={handleEditBooking}
             onDelete={handleDeleteBooking}
+            canEdit={isAdmin}
+            variant="compact"
+            showToolbar={false}
           />
         </div>
       </>
@@ -755,6 +940,7 @@ function App() {
         packageCount={packages.length}
         currentUserName={userProfile.fullName}
         currentUserEmail={userProfile.email}
+        userRole={userProfile.role}
         onSignOut={handleSignOut}
       />
 
@@ -787,32 +973,53 @@ function App() {
             <>
               <div className="page-actions">
                 <div className="page-section-title">All packages</div>
-                <button
-                  className="header-action-btn"
-                  onClick={openNewPackageModal}
-                >
-                  + Add Package
-                </button>
+                {isAdmin && (
+                  <button
+                    className="header-action-btn"
+                    onClick={openNewPackageModal}
+                  >
+                    + Add Package
+                  </button>
+                )}
               </div>
 
               <PackageList
                 packages={packages}
                 onEdit={handleEditPackage}
                 onDelete={handleDeletePackage}
+                canEdit={isAdmin}
               />
             </>
           )}
 
           {screen === 'bookings' && (
             <>
-              <div className="page-actions">
+              <div className="page-actions bookings-page-actions">
                 <div className="page-section-title">All bookings</div>
-                <button
-                  className="header-action-btn"
-                  onClick={openNewBookingModal}
-                >
-                  + New Booking
-                </button>
+                <div className="page-actions-buttons">
+                  <button
+                    type="button"
+                    className="secondary-btn"
+                    onClick={() => setShowRemindersModal(true)}
+                  >
+                    Departure reminders
+                  </button>
+                  <button
+                    type="button"
+                    className="secondary-btn"
+                    onClick={handleExportBookingsCsv}
+                  >
+                    Export CSV
+                  </button>
+                  {isAdmin && (
+                    <button
+                      className="header-action-btn"
+                      onClick={openNewBookingModal}
+                    >
+                      + New Booking
+                    </button>
+                  )}
+                </div>
               </div>
 
               <BookingList
@@ -821,8 +1028,10 @@ function App() {
                 statusFilter={bookingStatusFilter}
                 onSearchChange={setBookingSearch}
                 onStatusChange={setBookingStatusFilter}
+                onView={(booking) => setViewBooking(booking)}
                 onEdit={handleEditBooking}
                 onDelete={handleDeleteBooking}
+                canEdit={isAdmin}
               />
             </>
           )}
@@ -858,8 +1067,15 @@ function App() {
             packages={packages}
             onChange={handleBookingInputChange}
             onPackageChange={handleBookingPackageChange}
+            onPaymentChange={handlePaymentChange}
+            onAddPayment={handleAddPayment}
+            onRemovePayment={handleRemovePayment}
+            onApplySuggestedPrice={handleApplySuggestedPrice}
+            suggestedPackagePrice={suggestedPackagePrice}
             onSubmit={handleSaveBooking}
             onClose={closeBookingModal}
+            isSubmitting={isSavingBooking}
+            readOnly={!isAdmin}
           />
         )}
 
@@ -867,8 +1083,19 @@ function App() {
           <BookingViewModal
             booking={viewBooking}
             onClose={() => setViewBooking(null)}
+            canEdit={isAdmin}
+            onEdit={handleEditBooking}
           />
         )}
+
+        {showRemindersModal && (
+          <DepartureRemindersModal
+            bookings={bookings}
+            onClose={() => setShowRemindersModal(false)}
+          />
+        )}
+
+        <Toast toast={toast} />
       </div>
     </div>
   );

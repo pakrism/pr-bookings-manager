@@ -1,6 +1,6 @@
 import { formatCurrency, getPackageImage } from '../../utils/helpers';
 
-function PackageList({ packages, onEdit, onDelete }) {
+function PackageList({ packages, onEdit, onDelete, canEdit = true }) {
   if (!packages.length) {
     return (
       <div className="empty-state">
@@ -34,24 +34,26 @@ function PackageList({ packages, onEdit, onDelete }) {
                 <p className="package-duration">{item.duration || '-'}</p>
               </div>
 
-              <div className="package-actions">
-                <button
-                  className="icon-btn"
-                  type="button"
-                  onClick={() => onEdit(item)}
-                  title="Edit package"
-                >
-                  ✎
-                </button>
-                <button
-                  className="icon-btn"
-                  type="button"
-                  onClick={() => onDelete(item.id)}
-                  title="Delete package"
-                >
-                  🗑
-                </button>
-              </div>
+              {canEdit && (
+                <div className="package-actions">
+                  <button
+                    className="icon-btn"
+                    type="button"
+                    onClick={() => onEdit(item)}
+                    title="Edit package"
+                  >
+                    ✎
+                  </button>
+                  <button
+                    className="icon-btn"
+                    type="button"
+                    onClick={() => onDelete(item.id)}
+                    title="Delete package"
+                  >
+                    🗑
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </article>

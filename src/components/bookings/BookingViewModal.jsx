@@ -1,13 +1,18 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { formatCurrency, getStatusBadgeClass } from '../../utils/helpers';
 import {
   getBookingProfit,
   hasBookingFinancials,
 } from '../../utils/bookingFinancials';
+import { getBookingBalance } from '../../utils/bookingBalance';
 import { resolveBookingStatus } from '../../utils/bookingStatus';
 import { normalizeBookingTourType } from '../../utils/tourType';
+import { getPaymentsFromBooking, getTotalPaid } from '../../utils/payments';
+import { generateInvoicePDF } from '../../utils/invoice';
 
-function BookingViewModal({ booking, onClose }) {
+function BookingViewModal({ booking, onClose, canEdit = true, onEdit }) {
+  const [showHistory, setShowHistory] = useState(false);
+
   useEffect(() => {
     function handleEsc(event) {
       if (event.key === 'Escape') {
@@ -22,6 +27,9 @@ function BookingViewModal({ booking, onClose }) {
   if (!booking) return null;
 
   const resolvedStatus = resolveBookingStatus(booking);
+  const payments = getPaymentsFromBooking(booking);
+  const balance = getBookingBalance(booking);
+  const totalPaid = getTotalPaid(booking);
 
   function handleBackdropClick(event) {
     if (event.target === event.currentTarget) {
@@ -105,15 +113,6 @@ function BookingViewModal({ booking, onClose }) {
                 <strong>Pax:</strong> {pax}
               </div>
               <div>
-                <strong>Adults:</strong> {booking.adults || 0}
-              </div>
-              <div>
-                <strong>Children:</strong> {booking.children || 0}
-              </div>
-              <div>
-                <strong>Infants:</strong> {booking.infants || 0}
-              </div>
-              <div>
                 <strong>Group Type:</strong>{' '}
                 {booking.groupType === 'Other'
                   ? booking.groupTypeNote || 'Other'
@@ -129,12 +128,10 @@ function BookingViewModal({ booking, onClose }) {
                 <strong>Package:</strong> {formatCurrency(booking.packagePrice)}
               </div>
               <div>
-                <strong>Advance:</strong>{' '}
-                {formatCurrency(booking.advanceReceived)}
+                <strong>Total paid:</strong> {formatCurrency(totalPaid)}
               </div>
               <div>
-                <strong>Balance:</strong>{' '}
-                {formatCurrency(booking.remainingAmount)}
+                <strong>Balance:</strong> {formatCurrency(balance)}
               </div>
               <div>
                 <strong>Total Expenses:</strong>{' '}
@@ -155,7 +152,43 @@ function BookingViewModal({ booking, onClose }) {
                 </span>
               </div>
             </div>
+
+            {payments.length > 0 && (
+              <div className="payment-history-list">
+                {payments.map((payment) => (
+                  <div key={payment.id} className="payment-history-row">
+                    <span>{payment.paidAt || '-'}</span>
+                    <span>{payment.note || '-'}</span>
+                    <strong>{formatCurrency(payment.amount)}</strong>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
+
+          {!!booking.auditLog?.length && (
+            <div className="form-section">
+              <button
+                type="button"
+                className="link-btn"
+                onClick={() => setShowHistory((prev) => !prev)}
+              >
+                {showHistory ? 'Hide' : 'Show'} change history
+              </button>
+              {showHistory && (
+                <ul className="audit-log-list">
+                  {booking.auditLog.map((entry, index) => (
+                    <li key={`${entry.at}-${index}`}>
+                      <strong>{entry.byName || 'User'}</strong> — {entry.summary}
+                      <div className="table-subtext">
+                        {new Date(entry.at).toLocaleString()} ({entry.action})
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          )}
 
           {!!booking.specialNotes && (
             <div className="form-section">
@@ -165,6 +198,25 @@ function BookingViewModal({ booking, onClose }) {
           )}
 
           <div className="modal-footer">
+            <button
+              type="button"
+              className="secondary-btn"
+              onClick={() => generateInvoicePDF(booking)}
+            >
+              Download invoice
+            </button>
+            {canEdit && onEdit && (
+              <button
+                type="button"
+                className="secondary-btn"
+                onClick={() => {
+                  onClose();
+                  onEdit(booking);
+                }}
+              >
+                Edit
+              </button>
+            )}
             <button type="button" className="secondary-btn" onClick={onClose}>
               Close
             </button>

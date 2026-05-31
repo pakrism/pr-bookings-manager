@@ -28,6 +28,8 @@ export const BOOKING_TOUR_TYPES = ['Group Tour', 'Private Tour'];
 
 export const BOOKED_BY_OPTIONS = ['Zohaib', 'Pervaiz', 'Admin', 'Other'];
 
+export const DEPARTURE_REMINDER_DAYS = 7;
+
 export const groupTypes = [
   'Solo',
   'Couple',
@@ -69,7 +71,8 @@ export const emptyBookingForm = {
   groupType: 'Solo',
   groupTypeNote: '',
   packagePrice: '',
-  advanceReceived: '',
+  packagePriceTouched: false,
+  payments: [],
   totalExpenses: '',
   totalProfit: '',
   specialNotes: '',

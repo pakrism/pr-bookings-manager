@@ -27,8 +27,11 @@ export async function getApprovedUserProfile(uid) {
     return null;
   }
 
+  const data = snap.data();
+
   return {
     uid,
-    ...snap.data(),
+    ...data,
+    role: data.role === 'viewer' ? 'viewer' : 'admin',
   };
 }

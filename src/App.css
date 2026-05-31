@@ -950,6 +950,240 @@ img {
   padding: 10px 0;
 }
 
+.booking-row-clickable {
+  cursor: pointer;
+}
+
+.booking-row-clickable:hover td {
+  background: #f8fafc;
+}
+
+.bookings-desktop-only {
+  display: block;
+}
+
+.bookings-mobile-only {
+  display: none;
+}
+
+.bookings-cards-wrap {
+  display: grid;
+  gap: 12px;
+}
+
+.booking-card {
+  border: 1px solid #e5e7eb;
+  border-radius: 14px;
+  padding: 14px;
+  background: #fff;
+  cursor: pointer;
+}
+
+.booking-card:hover {
+  border-color: #cbd5e1;
+}
+
+.booking-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.booking-card-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  font-size: 14px;
+}
+
+.booking-card-label {
+  display: block;
+  color: #94a3b8;
+  font-size: 12px;
+  margin-bottom: 2px;
+}
+
+.booking-card-actions {
+  margin-top: 12px;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.row-menu-wrap {
+  position: relative;
+}
+
+.row-menu-trigger {
+  border: 1px solid #e5e7eb;
+  background: #fff;
+  border-radius: 8px;
+  width: 36px;
+  height: 36px;
+  cursor: pointer;
+  font-size: 18px;
+  line-height: 1;
+}
+
+.row-menu-dropdown {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 4px);
+  min-width: 140px;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.12);
+  z-index: 20;
+  overflow: hidden;
+}
+
+.row-menu-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 10px 12px;
+  border: none;
+  background: #fff;
+  color: #0f172a;
+  text-decoration: none;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.row-menu-item:hover {
+  background: #f8fafc;
+}
+
+.row-menu-item.danger {
+  color: #dc2626;
+}
+
+.toast {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  z-index: 2000;
+  padding: 12px 16px;
+  border-radius: 10px;
+  color: #fff;
+  font-weight: 600;
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.2);
+}
+
+.toast-success {
+  background: #15803d;
+}
+
+.toast-error {
+  background: #dc2626;
+}
+
+.btn-loading {
+  opacity: 0.85;
+}
+
+.payment-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1.2fr auto;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.payment-ledger-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.suggested-price-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 46px;
+}
+
+.suggested-price-value {
+  font-weight: 700;
+}
+
+.small-btn {
+  padding: 8px 12px;
+  font-size: 13px;
+}
+
+.danger-text {
+  color: #dc2626;
+}
+
+.payment-history-list {
+  margin-top: 12px;
+  display: grid;
+  gap: 8px;
+}
+
+.payment-history-row {
+  display: grid;
+  grid-template-columns: 120px 1fr auto;
+  gap: 8px;
+  font-size: 14px;
+}
+
+.audit-log-list {
+  margin: 12px 0 0;
+  padding-left: 18px;
+}
+
+.link-btn {
+  border: none;
+  background: none;
+  color: #2563eb;
+  cursor: pointer;
+  padding: 0;
+  font-weight: 600;
+}
+
+.reminder-list {
+  display: grid;
+  gap: 10px;
+}
+
+.reminder-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.reminder-actions {
+  margin-bottom: 12px;
+}
+
+.page-actions-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.bookings-page-actions {
+  align-items: center;
+}
+
+.sidebar-role-badge {
+  display: inline-block;
+  margin-top: 4px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #fef3c7;
+  color: #92400e;
+  font-size: 11px;
+  font-weight: 700;
+}
+
 .checkbox-row {
   display: flex;
   align-items: center;
@@ -1110,6 +1344,7 @@ img {
 
 .schedule-toolbar {
   display: flex;
+  flex-wrap: wrap;
   gap: 14px;
   align-items: center;
 }
@@ -1415,6 +1650,18 @@ img {
 }
 
 @media (max-width: 760px) {
+  .bookings-desktop-only {
+    display: none;
+  }
+
+  .bookings-mobile-only {
+    display: block;
+  }
+
+  .payment-row {
+    grid-template-columns: 1fr;
+  }
+
   .page-topbar-right {
     width: 100%;
     justify-content: space-between;

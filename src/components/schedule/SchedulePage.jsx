@@ -1,78 +1,24 @@
 import { useMemo, useState } from 'react';
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
 import { getStatusBadgeClass, getWhatsappLink } from '../../utils/helpers';
 import { resolveBookingStatus } from '../../utils/bookingStatus';
 import { normalizeBookingTourType } from '../../utils/tourType';
+import { getBookingBalance } from '../../utils/bookingBalance';
+import { getTotalPaid } from '../../utils/payments';
 import {
   formatScheduleMoney,
   getScheduleBatchStatus,
   getScheduleKpis,
   groupBookingsIntoSchedules,
 } from '../../utils/scheduleHelpers';
+import {
+  downloadAllScheduleBatchesPdf,
+  downloadScheduleBatchPdf,
+} from '../../utils/schedulePdf';
+import { downloadScheduleIcal } from '../../utils/scheduleIcal';
 
 function ScheduleBatchCard({ batch, onOpenBooking }) {
   const [expanded, setExpanded] = useState(true);
-
   const batchStatus = getScheduleBatchStatus(batch);
-
-  function handleDownloadPDF() {
-    const doc = new jsPDF();
-
-    doc.setFontSize(16);
-    doc.text(`Pakrism Schedule Batch`, 14, 16);
-
-    doc.setFontSize(11);
-    doc.text(`Trip Batch: ${batch.tripBatch}`, 14, 26);
-    doc.text(`Destination: ${batch.destination}`, 14, 32);
-    doc.text(`Duration: ${batch.duration}`, 14, 38);
-    doc.text(`Status: ${batchStatus}`, 14, 44);
-    doc.text(`Bookings: ${batch.totalBookings}`, 120, 26);
-    doc.text(`Pax: ${batch.totalPax}`, 120, 32);
-    doc.text(`Advance: ${formatScheduleMoney(batch.totalAdvance)}`, 120, 38);
-    doc.text(`Balance: ${formatScheduleMoney(batch.totalBalance)}`, 120, 44);
-
-    autoTable(doc, {
-      startY: 52,
-      head: [
-        [
-          'Ref',
-          'Guest / Group',
-          'Booked By',
-          'Type',
-          'Pax',
-          'Transport',
-          'Advance',
-          'Package',
-          'Balance',
-        ],
-      ],
-      body: batch.bookings.map((booking) => {
-        const pax =
-          Number(booking.adults || 0) +
-          Number(booking.children || 0) +
-          Number(booking.infants || 0);
-
-        return [
-          booking.bookingRef || '-',
-          booking.guestName || '-',
-          booking.bookedBy || '-',
-          normalizeBookingTourType(booking.type),
-          pax,
-          booking.transport || '-',
-          booking.advanceReceived || 0,
-          booking.packagePrice || 0,
-          booking.remainingAmount || 0,
-        ];
-      }),
-    });
-
-    doc.save(
-      `pakrism-schedule-${batch.destination}-${
-        batch.travelStartDate || 'batch'
-      }.pdf`
-    );
-  }
 
   return (
     <div className="schedule-batch-card">
@@ -102,7 +48,7 @@ function ScheduleBatchCard({ batch, onOpenBooking }) {
           <button
             type="button"
             className="schedule-pdf-btn"
-            onClick={handleDownloadPDF}
+            onClick={() => downloadScheduleBatchPdf(batch)}
           >
             Download PDF
           </button>
@@ -150,7 +96,7 @@ function ScheduleBatchCard({ batch, onOpenBooking }) {
                 <th>Type</th>
                 <th>Pax</th>
                 <th>Transport</th>
-                <th>Advance</th>
+                <th>Paid</th>
                 <th>Package</th>
                 <th>Balance</th>
                 <th>Status</th>
@@ -188,15 +134,11 @@ function ScheduleBatchCard({ batch, onOpenBooking }) {
                     <td>{normalizeBookingTourType(booking.type)}</td>
                     <td>{pax}</td>
                     <td>{booking.transport || '-'}</td>
-                    <td>{formatScheduleMoney(booking.advanceReceived)}</td>
+                    <td>{formatScheduleMoney(getTotalPaid(booking))}</td>
                     <td>{formatScheduleMoney(booking.packagePrice)}</td>
                     <td>
                       <span className="balance-text">
-                        {formatScheduleMoney(
-                          booking.remainingAmount ||
-                            Number(booking.packagePrice || 0) -
-                              Number(booking.advanceReceived || 0)
-                        )}
+                        {formatScheduleMoney(getBookingBalance(booking))}
                       </span>
                     </td>
                     <td>
@@ -239,6 +181,13 @@ function SchedulePage({ bookings, onOpenBooking }) {
       view: viewFilter,
     });
   }, [bookings, searchTerm, viewFilter]);
+
+  const upcomingBatchesForExport = useMemo(() => {
+    return groupBookingsIntoSchedules(bookings, {
+      search: searchTerm,
+      view: 'upcoming',
+    }).filter((batch) => getScheduleBatchStatus(batch) !== 'Completed');
+  }, [bookings, searchTerm]);
 
   const kpis = useMemo(
     () => getScheduleKpis(groupedSchedules),
@@ -306,6 +255,29 @@ function SchedulePage({ bookings, onOpenBooking }) {
           <option value="past">Past Trips</option>
           <option value="all">All Trips</option>
         </select>
+
+        <button
+          type="button"
+          className="schedule-pdf-btn"
+          disabled={!upcomingBatchesForExport.length}
+          onClick={() =>
+            downloadAllScheduleBatchesPdf(
+              upcomingBatchesForExport,
+              'Upcoming Schedules'
+            )
+          }
+        >
+          Download all upcoming PDF
+        </button>
+
+        <button
+          type="button"
+          className="schedule-pdf-btn"
+          disabled={!upcomingBatchesForExport.length}
+          onClick={() => downloadScheduleIcal(upcomingBatchesForExport)}
+        >
+          Export iCal
+        </button>
       </div>
 
       {!groupedSchedules.length ? (

@@ -1,4 +1,6 @@
 import { formatCurrency } from './helpers';
+import { getBookingBalance } from './bookingBalance';
+import { getTotalPaid } from './payments';
 
 function safeDateValue(dateStr) {
   if (!dateStr) return null;
@@ -91,11 +93,9 @@ export function groupBookingsIntoSchedules(bookings = [], options = {}) {
       Number(booking.children || 0) +
       Number(booking.infants || 0);
 
-    const advance = Number(booking.advanceReceived || 0);
+    const advance = getTotalPaid(booking);
     const packagePrice = Number(booking.packagePrice || 0);
-    const balance = Number(
-      booking.remainingAmount || packagePrice - advance || 0
-    );
+    const balance = getBookingBalance(booking);
 
     if (!existing) {
       groupedMap.set(key, {
