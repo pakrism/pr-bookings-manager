@@ -4,6 +4,8 @@ import {
   getBookingProfit,
   hasBookingFinancials,
 } from '../../utils/bookingFinancials';
+import { resolveBookingStatus } from '../../utils/bookingStatus';
+import { normalizeBookingTourType } from '../../utils/tourType';
 
 function BookingViewModal({ booking, onClose }) {
   useEffect(() => {
@@ -18,6 +20,8 @@ function BookingViewModal({ booking, onClose }) {
   }, [onClose]);
 
   if (!booking) return null;
+
+  const resolvedStatus = resolveBookingStatus(booking);
 
   function handleBackdropClick(event) {
     if (event.target === event.currentTarget) {
@@ -64,7 +68,7 @@ function BookingViewModal({ booking, onClose }) {
                 <strong>Package:</strong> {booking.packageName || '-'}
               </div>
               <div>
-                <strong>Type:</strong> {booking.type || '-'}
+                <strong>Type:</strong> {normalizeBookingTourType(booking.type)}
               </div>
             </div>
           </div>
@@ -146,8 +150,8 @@ function BookingViewModal({ booking, onClose }) {
               </div>
               <div>
                 <strong>Status:</strong>{' '}
-                <span className={getStatusBadgeClass(booking.bookingStatus)}>
-                  {booking.bookingStatus || '-'}
+                <span className={getStatusBadgeClass(resolvedStatus)}>
+                  {resolvedStatus}
                 </span>
               </div>
             </div>

@@ -399,7 +399,7 @@ img {
 
 .dashboard-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: 16px;
   margin-bottom: 28px;
 }
@@ -944,6 +944,10 @@ img {
   color: #64748b;
   font-size: 13px;
   line-height: 1.4;
+}
+
+.status-preview {
+  padding: 10px 0;
 }
 
 .checkbox-row {

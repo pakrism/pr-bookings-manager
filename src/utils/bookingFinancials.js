@@ -44,3 +44,8 @@ export function getBookingProfit(booking) {
 export function hasBookingFinancials(booking) {
   return booking.totalExpenses != null || booking.totalProfit != null;
 }
+
+export function getBookingExpenses(booking) {
+  if (!hasBookingFinancials(booking)) return null;
+  return Number(booking.totalExpenses || 0);
+}

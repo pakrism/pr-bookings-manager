@@ -1,11 +1,13 @@
 import { useEffect } from 'react';
 import {
   BOOKED_BY_OPTIONS,
-  BOOKING_STATUSES,
+  BOOKING_TOUR_TYPES,
+  MANUAL_BOOKING_STATUSES,
   groupTypes,
   transportOptions,
 } from '../../data/constants';
-import { formatCurrency } from '../../utils/helpers';
+import { formatCurrency, getStatusBadgeClass } from '../../utils/helpers';
+import { resolveFormBookingStatus } from '../../utils/bookingStatus';
 
 function BookingForm({
   bookingForm,
@@ -41,6 +43,8 @@ function BookingForm({
   const balance =
     Number(bookingForm.packagePrice || 0) -
     Number(bookingForm.advanceReceived || 0);
+
+  const autoStatus = resolveFormBookingStatus(bookingForm);
 
   return (
     <div className="modal-backdrop" onClick={handleBackdropClick}>
@@ -120,13 +124,18 @@ function BookingForm({
                 <div className="form-grid-3">
                   <div className="form-field">
                     <label>Tour Type *</label>
-                    <input
-                      className="form-input"
-                      type="text"
+                    <select
+                      className="form-select"
                       name="type"
                       value={bookingForm.type}
                       onChange={onChange}
-                    />
+                    >
+                      {BOOKING_TOUR_TYPES.map((item) => (
+                        <option key={item} value={item}>
+                          {item}
+                        </option>
+                      ))}
+                    </select>
                   </div>
 
                   <div className="form-field">
@@ -387,14 +396,24 @@ function BookingForm({
               <div className="section-block">
                 <div className="form-grid-2">
                   <div className="form-field">
-                    <label>Booking Status *</label>
+                    <label>Status (auto from dates)</label>
+                    <div className="status-preview">
+                      <span className={getStatusBadgeClass(autoStatus)}>
+                        {autoStatus}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="form-field">
+                    <label>Status override</label>
                     <select
                       className="form-select"
-                      name="bookingStatus"
-                      value={bookingForm.bookingStatus}
+                      name="statusOverride"
+                      value={bookingForm.statusOverride}
                       onChange={onChange}
                     >
-                      {BOOKING_STATUSES.map((item) => (
+                      <option value="">None (use dates)</option>
+                      {MANUAL_BOOKING_STATUSES.map((item) => (
                         <option key={item} value={item}>
                           {item}
                         </option>

@@ -12,7 +12,16 @@ import LoginPage from './components/auth/LoginPage';
 
 import { emptyBookingForm, emptyPackageForm } from './data/constants';
 import { getNextBookingRef, formatCurrency } from './utils/helpers';
-import { syncFinancials, getBookingProfit } from './utils/bookingFinancials';
+import {
+  syncFinancials,
+  getBookingProfit,
+  getBookingExpenses,
+} from './utils/bookingFinancials';
+import {
+  computeBookingStatus,
+  resolveBookingStatus,
+} from './utils/bookingStatus';
+import { toFormTourType } from './utils/tourType';
 
 import {
   getApprovedUserProfile,
@@ -155,11 +164,35 @@ function App() {
     return sum + (profit ?? 0);
   }, 0);
 
-  const upcomingBookings = bookings.filter(
-    (booking) =>
-      booking.bookingStatus === 'Upcoming' ||
-      booking.bookingStatus === 'On-Going'
+  const totalExpenses = bookings.reduce((sum, booking) => {
+    const expenses = getBookingExpenses(booking);
+    return sum + (expenses ?? 0);
+  }, 0);
+
+  const totalAdvance = bookings.reduce(
+    (sum, booking) => sum + Number(booking.advanceReceived || 0),
+    0
+  );
+
+  const outstandingBalance = bookings.reduce((sum, booking) => {
+    const balance =
+      Number(booking.remainingAmount || 0) ||
+      Number(booking.packagePrice || 0) -
+        Number(booking.advanceReceived || 0);
+    return sum + balance;
+  }, 0);
+
+  const profitMargin =
+    totalRevenue > 0 ? Math.round((totalProfit / totalRevenue) * 100) : 0;
+
+  const completedTrips = bookings.filter(
+    (booking) => resolveBookingStatus(booking) === 'Completed'
   ).length;
+
+  const upcomingBookings = bookings.filter((booking) => {
+    const status = resolveBookingStatus(booking);
+    return status === 'Upcoming' || status === 'On-Going';
+  }).length;
 
   const recentBookings = [...bookings]
     .sort((a, b) => {
@@ -417,6 +450,13 @@ function App() {
           totalExpenses: null,
           totalProfit: null,
         };
+    const bookingStatus = bookingForm.statusOverride
+      ? bookingForm.statusOverride
+      : computeBookingStatus(
+          bookingForm.travelStartDate,
+          bookingForm.travelEndDate
+        );
+
     const existingBooking = bookings.find(
       (item) => item.id === editingBookingId
     );
@@ -448,7 +488,7 @@ function App() {
           remainingAmount,
           ...financialFields,
           specialNotes: bookingForm.specialNotes.trim(),
-          bookingStatus: bookingForm.bookingStatus,
+          bookingStatus,
           bookedBy: bookingForm.bookedBy,
           createdByUid: existingBooking?.createdByUid || authUser.uid,
           createdByName: existingBooking?.createdByName || userProfile.fullName,
@@ -486,7 +526,7 @@ function App() {
           remainingAmount,
           ...financialFields,
           specialNotes: bookingForm.specialNotes.trim(),
-          bookingStatus: bookingForm.bookingStatus,
+          bookingStatus,
           bookedBy: bookingForm.bookedBy,
           createdByUid: authUser.uid,
           createdByName: userProfile.fullName,
@@ -516,7 +556,7 @@ function App() {
       packageName: booking.packageName || '',
       destination: booking.destination || '',
       duration: booking.duration || '',
-      type: booking.type || 'Group',
+      type: toFormTourType(booking.type),
       inclusionsText: booking.inclusionsText || '',
       travelStartDate: booking.travelStartDate || '',
       travelEndDate: booking.travelEndDate || '',
@@ -533,7 +573,9 @@ function App() {
       totalExpenses: booking.totalExpenses ?? '',
       totalProfit: booking.totalProfit ?? '',
       specialNotes: booking.specialNotes || '',
-      bookingStatus: booking.bookingStatus || 'Upcoming',
+      statusOverride: ['Cancelled', 'Refunded'].includes(booking.bookingStatus)
+        ? booking.bookingStatus
+        : '',
       bookedBy: booking.bookedBy || '',
     });
     setIsBookingModalOpen(true);
@@ -602,12 +644,58 @@ function App() {
 
           <div className="dashboard-card">
             <div>
+              <div className="dashboard-card-label">Total Expenses</div>
+              <div className="dashboard-card-value">
+                {formatCurrency(totalExpenses)}
+              </div>
+            </div>
+            <div className="dashboard-card-icon orange">📉</div>
+          </div>
+
+          <div className="dashboard-card">
+            <div>
               <div className="dashboard-card-label">Total Profit</div>
               <div className="dashboard-card-value">
                 {formatCurrency(totalProfit)}
               </div>
             </div>
             <div className="dashboard-card-icon green">💰</div>
+          </div>
+
+          <div className="dashboard-card">
+            <div>
+              <div className="dashboard-card-label">Total Advance</div>
+              <div className="dashboard-card-value">
+                {formatCurrency(totalAdvance)}
+              </div>
+            </div>
+            <div className="dashboard-card-icon blue">💳</div>
+          </div>
+
+          <div className="dashboard-card">
+            <div>
+              <div className="dashboard-card-label">Outstanding Balance</div>
+              <div className="dashboard-card-value">
+                {formatCurrency(outstandingBalance)}
+              </div>
+            </div>
+            <div className="dashboard-card-icon orange">⏳</div>
+          </div>
+
+          <div className="dashboard-card">
+            <div>
+              <div className="dashboard-card-label">Profit Margin</div>
+              <div className="dashboard-card-value">{profitMargin}%</div>
+            </div>
+            <div className="dashboard-card-icon green">📊</div>
+          </div>
+
+          <div className="dashboard-card">
+            <div>
+              <div className="dashboard-card-label">Completed Trips</div>
+              <div className="dashboard-card-value">{completedTrips}</div>
+            </div>
+            <div className="dashboard-card-icon teal">✓</div>
           </div>
         </div>
 

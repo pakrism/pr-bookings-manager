@@ -2,6 +2,8 @@ import { useMemo, useState } from 'react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { getStatusBadgeClass, getWhatsappLink } from '../../utils/helpers';
+import { resolveBookingStatus } from '../../utils/bookingStatus';
+import { normalizeBookingTourType } from '../../utils/tourType';
 import {
   formatScheduleMoney,
   getScheduleBatchStatus,
@@ -55,7 +57,7 @@ function ScheduleBatchCard({ batch, onOpenBooking }) {
           booking.bookingRef || '-',
           booking.guestName || '-',
           booking.bookedBy || '-',
-          booking.type || '-',
+          normalizeBookingTourType(booking.type),
           pax,
           booking.transport || '-',
           booking.advanceReceived || 0,
@@ -163,6 +165,7 @@ function ScheduleBatchCard({ batch, onOpenBooking }) {
                   Number(booking.infants || 0);
 
                 const whatsappLink = getWhatsappLink(booking.whatsappNumber);
+                const resolvedStatus = resolveBookingStatus(booking);
 
                 return (
                   <tr
@@ -182,7 +185,7 @@ function ScheduleBatchCard({ batch, onOpenBooking }) {
                       </div>
                     </td>
                     <td>{booking.bookedBy || '-'}</td>
-                    <td>{booking.type || '-'}</td>
+                    <td>{normalizeBookingTourType(booking.type)}</td>
                     <td>{pax}</td>
                     <td>{booking.transport || '-'}</td>
                     <td>{formatScheduleMoney(booking.advanceReceived)}</td>
@@ -197,10 +200,8 @@ function ScheduleBatchCard({ batch, onOpenBooking }) {
                       </span>
                     </td>
                     <td>
-                      <span
-                        className={getStatusBadgeClass(booking.bookingStatus)}
-                      >
-                        {booking.bookingStatus || '-'}
+                      <span className={getStatusBadgeClass(resolvedStatus)}>
+                        {resolvedStatus}
                       </span>
                     </td>
                     <td onClick={(e) => e.stopPropagation()}>

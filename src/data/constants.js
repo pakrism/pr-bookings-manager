@@ -15,13 +15,16 @@ export const transportOptions = [
   'Flight + Road',
 ];
 
+export const AUTO_BOOKING_STATUSES = ['Upcoming', 'On-Going', 'Completed'];
+
+export const MANUAL_BOOKING_STATUSES = ['Cancelled', 'Refunded'];
+
 export const BOOKING_STATUSES = [
-  'Upcoming',
-  'On-Going',
-  'Completed',
-  'Cancelled',
-  'Refunded',
+  ...AUTO_BOOKING_STATUSES,
+  ...MANUAL_BOOKING_STATUSES,
 ];
+
+export const BOOKING_TOUR_TYPES = ['Group Tour', 'Private Tour'];
 
 export const BOOKED_BY_OPTIONS = ['Zohaib', 'Pervaiz', 'Admin', 'Other'];
 
@@ -53,7 +56,7 @@ export const emptyBookingForm = {
   packageName: '',
   destination: '',
   duration: '',
-  type: 'Group',
+  type: 'Group Tour',
   inclusionsText: '',
   travelStartDate: '',
   travelEndDate: '',
@@ -70,6 +73,6 @@ export const emptyBookingForm = {
   totalExpenses: '',
   totalProfit: '',
   specialNotes: '',
-  bookingStatus: 'Upcoming',
+  statusOverride: '',
   bookedBy: '',
 };

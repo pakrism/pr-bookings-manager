@@ -9,6 +9,8 @@ import {
   getBookingProfit,
   hasBookingFinancials,
 } from '../../utils/bookingFinancials';
+import { resolveBookingStatus } from '../../utils/bookingStatus';
+import { normalizeBookingTourType } from '../../utils/tourType';
 
 function BookingList({
   bookings,
@@ -29,8 +31,9 @@ function BookingList({
       booking.destination?.toLowerCase().includes(query) ||
       booking.bookingRef?.toLowerCase().includes(query);
 
+    const resolvedStatus = resolveBookingStatus(booking);
     const matchesStatus =
-      statusFilter === 'All Status' || booking.bookingStatus === statusFilter;
+      statusFilter === 'All Status' || resolvedStatus === statusFilter;
 
     return matchesSearch && matchesStatus;
   });
@@ -99,6 +102,7 @@ function BookingList({
 
           <tbody>
             {filteredBookings.map((booking) => {
+              const resolvedStatus = resolveBookingStatus(booking);
               const balance =
                 Number(booking.remainingAmount || 0) ||
                 Number(booking.packagePrice || 0) -
@@ -118,7 +122,9 @@ function BookingList({
                   <td>{booking.packageName || '-'}</td>
 
                   <td>
-                    <span className="type-pill">{booking.type || '-'}</span>
+                    <span className="type-pill">
+                      {normalizeBookingTourType(booking.type)}
+                    </span>
                   </td>
 
                   <td>
@@ -137,10 +143,8 @@ function BookingList({
                   <td>{booking.bookedBy || '-'}</td>
 
                   <td>
-                    <span
-                      className={getStatusBadgeClass(booking.bookingStatus)}
-                    >
-                      {booking.bookingStatus}
+                    <span className={getStatusBadgeClass(resolvedStatus)}>
+                      {resolvedStatus}
                     </span>
                   </td>
 
