@@ -14,6 +14,7 @@ function Sidebar({
     { key: 'bookings', label: 'Bookings', icon: '☷', badge: bookingCount },
     { key: 'packages', label: 'Packages', icon: '◫', badge: packageCount },
     { key: 'schedule', label: 'Schedule', icon: '🗓' },
+    { key: 'revenue', label: 'Revenue', icon: '💹' },
   ];
 
   const initial = currentUserName?.trim()?.[0]?.toUpperCase() || 'U';

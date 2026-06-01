@@ -10,6 +10,12 @@ import {
   getScheduleKpis,
   groupBookingsIntoSchedules,
 } from '../../utils/scheduleHelpers';
+import { toMonthKey, formatMonthLabel } from '../../utils/datePeriods';
+import {
+  BATCH_SORT_OPTIONS,
+  sortScheduleBatches,
+} from '../../utils/bookingSort';
+import { getTravelMonthOptions } from '../../utils/bookingFilters';
 import {
   downloadAllScheduleBatchesPdf,
   downloadScheduleBatchPdf,
@@ -174,13 +180,28 @@ function ScheduleBatchCard({ batch, onOpenBooking }) {
 function SchedulePage({ bookings, onOpenBooking }) {
   const [searchTerm, setSearchTerm] = useState('');
   const [viewFilter, setViewFilter] = useState('upcoming');
+  const [monthFilter, setMonthFilter] = useState('All months');
+  const [batchSort, setBatchSort] = useState('departure_asc');
+
+  const monthOptions = useMemo(
+    () => getTravelMonthOptions(bookings),
+    [bookings]
+  );
 
   const groupedSchedules = useMemo(() => {
-    return groupBookingsIntoSchedules(bookings, {
+    let batches = groupBookingsIntoSchedules(bookings, {
       search: searchTerm,
       view: viewFilter,
     });
-  }, [bookings, searchTerm, viewFilter]);
+
+    if (monthFilter && monthFilter !== 'All months') {
+      batches = batches.filter(
+        (batch) => toMonthKey(batch.travelStartDate) === monthFilter
+      );
+    }
+
+    return sortScheduleBatches(batches, batchSort);
+  }, [bookings, searchTerm, viewFilter, monthFilter, batchSort]);
 
   const upcomingBatchesForExport = useMemo(() => {
     return groupBookingsIntoSchedules(bookings, {
@@ -254,6 +275,31 @@ function SchedulePage({ bookings, onOpenBooking }) {
           <option value="upcoming">Upcoming Trips</option>
           <option value="past">Past Trips</option>
           <option value="all">All Trips</option>
+        </select>
+
+        <select
+          className="toolbar-select"
+          value={monthFilter}
+          onChange={(e) => setMonthFilter(e.target.value)}
+        >
+          <option value="All months">All months</option>
+          {monthOptions.map((key) => (
+            <option key={key} value={key}>
+              {formatMonthLabel(key)}
+            </option>
+          ))}
+        </select>
+
+        <select
+          className="toolbar-select"
+          value={batchSort}
+          onChange={(e) => setBatchSort(e.target.value)}
+        >
+          {BATCH_SORT_OPTIONS.map((opt) => (
+            <option key={opt.value} value={opt.value}>
+              {opt.label}
+            </option>
+          ))}
         </select>
 
         <button

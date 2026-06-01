@@ -9,6 +9,7 @@ import { resolveBookingStatus } from '../../utils/bookingStatus';
 import { normalizeBookingTourType } from '../../utils/tourType';
 import { getPaymentsFromBooking, getTotalPaid } from '../../utils/payments';
 import { generateInvoicePDF } from '../../utils/invoice';
+import { getPartnerShares } from '../../utils/partnerProfit';
 
 function BookingViewModal({ booking, onClose, canEdit = true, onEdit }) {
   const [showHistory, setShowHistory] = useState(false);
@@ -145,6 +146,13 @@ function BookingViewModal({ booking, onClose, canEdit = true, onEdit }) {
                   ? formatCurrency(getBookingProfit(booking))
                   : '-'}
               </div>
+              {hasBookingFinancials(booking) &&
+                getPartnerShares(booking).map(({ partner, amount }) => (
+                  <div key={partner}>
+                    <strong>{partner} share (50%):</strong>{' '}
+                    {amount != null ? formatCurrency(amount) : '-'}
+                  </div>
+                ))}
               <div>
                 <strong>Status:</strong>{' '}
                 <span className={getStatusBadgeClass(resolvedStatus)}>

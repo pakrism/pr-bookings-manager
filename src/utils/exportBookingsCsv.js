@@ -1,7 +1,9 @@
 import { resolveBookingStatus } from './bookingStatus';
 import { getBookingBalance } from './bookingBalance';
+import { getBookingProfit } from './bookingFinancials';
 import { getTotalPaid } from './payments';
 import { normalizeBookingTourType } from './tourType';
+import { getPartnerShareAmount } from './partnerProfit';
 
 function escapeCsv(value) {
   const text = String(value ?? '');
@@ -24,6 +26,8 @@ export function downloadBookingsCsv(bookings, filename = 'pakrism-bookings.csv')
     'Price',
     'Total Paid',
     'Balance',
+    'Profit',
+    'Partner Share (each)',
     'Booked By',
   ];
 
@@ -39,6 +43,8 @@ export function downloadBookingsCsv(bookings, filename = 'pakrism-bookings.csv')
     booking.packagePrice,
     getTotalPaid(booking),
     getBookingBalance(booking),
+    getBookingProfit(booking) ?? '',
+    getPartnerShareAmount(booking) ?? '',
     booking.bookedBy,
   ]);
 

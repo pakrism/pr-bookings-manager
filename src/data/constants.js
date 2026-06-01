@@ -28,6 +28,9 @@ export const BOOKING_TOUR_TYPES = ['Group Tour', 'Private Tour'];
 
 export const BOOKED_BY_OPTIONS = ['Zohaib', 'Pervaiz', 'Admin', 'Other'];
 
+export const PARTNERS = ['Zohaib', 'Pervaiz'];
+export const PARTNER_SHARE_COUNT = 2;
+
 export const DEPARTURE_REMINDER_DAYS = 7;
 
 export const groupTypes = [

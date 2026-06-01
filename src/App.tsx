@@ -9,6 +9,7 @@ import BookingList from './components/bookings/BookingList';
 import BookingViewModal from './components/bookings/BookingViewModal';
 import DepartureRemindersModal from './components/bookings/DepartureRemindersModal';
 import SchedulePage from './components/schedule/SchedulePage';
+import RevenuePage from './components/revenue/RevenuePage';
 import LoginPage from './components/auth/LoginPage';
 import { Toast } from './components/common/Toast';
 
@@ -39,7 +40,9 @@ import {
   buildBookingAuditSummary,
 } from './utils/auditLog';
 import { downloadBookingsCsv } from './utils/exportBookingsCsv';
-import { filterBookings } from './utils/bookingFilters';
+import { prepareBookingsForList } from './utils/bookingFilters';
+import { getPartnerShareAmount } from './utils/partnerProfit';
+import { PARTNERS } from './data/constants';
 
 import {
   getApprovedUserProfile,
@@ -90,6 +93,8 @@ function App() {
 
   const [bookingSearch, setBookingSearch] = useState('');
   const [bookingStatusFilter, setBookingStatusFilter] = useState('All Status');
+  const [bookingMonthFilter, setBookingMonthFilter] = useState('All months');
+  const [bookingSort, setBookingSort] = useState('departure_desc');
   const [isSavingBooking, setIsSavingBooking] = useState(false);
   const [toast, setToast] = useState(null);
   const [showRemindersModal, setShowRemindersModal] = useState(false);
@@ -214,6 +219,13 @@ function App() {
       };
     }
 
+    if (screen === 'revenue') {
+      return {
+        title: 'Revenue',
+        subtitle: 'Payment-month attribution and partner shares',
+      };
+    }
+
     return {
       title: 'Packages',
       subtitle: `${packages.length} tour packages`,
@@ -247,6 +259,17 @@ function App() {
 
   const profitMargin =
     totalRevenue > 0 ? Math.round((totalProfit / totalRevenue) * 100) : 0;
+
+  const partnerShareTotals = PARTNERS.reduce(
+    (acc, partner) => {
+      acc[partner] = bookings.reduce((sum, booking) => {
+        const share = getPartnerShareAmount(booking);
+        return sum + (share ?? 0);
+      }, 0);
+      return acc;
+    },
+    {}
+  );
 
   const completedTrips = bookings.filter(
     (booking) => resolveBookingStatus(booking) === 'Completed'
@@ -763,11 +786,12 @@ function App() {
   }
 
   function handleExportBookingsCsv() {
-    const filtered = filterBookings(
-      bookings,
-      bookingSearch,
-      bookingStatusFilter
-    );
+    const filtered = prepareBookingsForList(bookings, {
+      searchTerm: bookingSearch,
+      statusFilter: bookingStatusFilter,
+      monthFilter: bookingMonthFilter,
+      sortKey: bookingSort,
+    });
     downloadBookingsCsv(filtered);
     showToast('Bookings CSV downloaded.');
   }
@@ -878,6 +902,18 @@ function App() {
             </div>
             <div className="dashboard-card-icon teal">✓</div>
           </div>
+
+          {PARTNERS.map((partner) => (
+            <div key={partner} className="dashboard-card">
+              <div>
+                <div className="dashboard-card-label">{partner} (50%)</div>
+                <div className="dashboard-card-value">
+                  {formatCurrency(partnerShareTotals[partner] ?? 0)}
+                </div>
+              </div>
+              <div className="dashboard-card-icon blue">👤</div>
+            </div>
+          ))}
         </div>
 
         <div className="dashboard-table-card">
@@ -1026,14 +1062,26 @@ function App() {
                 bookings={bookings}
                 searchTerm={bookingSearch}
                 statusFilter={bookingStatusFilter}
+                monthFilter={bookingMonthFilter}
+                sortKey={bookingSort}
                 onSearchChange={setBookingSearch}
                 onStatusChange={setBookingStatusFilter}
+                onMonthChange={setBookingMonthFilter}
+                onSortChange={setBookingSort}
                 onView={(booking) => setViewBooking(booking)}
                 onEdit={handleEditBooking}
                 onDelete={handleDeleteBooking}
                 canEdit={isAdmin}
               />
             </>
+          )}
+
+          {screen === 'revenue' && (
+            <RevenuePage
+              bookings={bookings}
+              onViewBooking={(booking) => setViewBooking(booking)}
+              onExportToast={() => showToast('Revenue CSV downloaded.')}
+            />
           )}
 
           {screen === 'schedule' && (
