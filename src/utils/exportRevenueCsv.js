@@ -1,6 +1,8 @@
 import { formatMonthLabel } from './datePeriods';
 import { getRevenueTableRow } from './revenueMetrics';
-import { PARTNERS } from '../data/constants';
+import { getAllRecipientConfigs } from '../data/profitPools';
+
+const RECIPIENT_CONFIGS = getAllRecipientConfigs();
 
 function escapeCsv(value) {
   const text = String(value ?? '');
@@ -11,21 +13,34 @@ function escapeCsv(value) {
 }
 
 export function downloadRevenueCsv(bookings, range, filename = 'pakrism-revenue.csv') {
+  const recipientHeaders = RECIPIENT_CONFIGS.flatMap((c) => [
+    `${c.label} Amount`,
+    `${c.label} Paid`,
+  ]);
+
   const headers = [
     'Ref',
     'Guest',
     'Package',
-    'Attribution Month',
+    'Departure Month',
     'Package Price',
     'Collected (period)',
     'Profit',
     'Profit %',
-    ...PARTNERS.map((p) => `${p} Share`),
+    ...recipientHeaders,
     'Status',
   ];
 
   const rows = bookings.map((booking) => {
     const row = getRevenueTableRow(booking, range);
+    const recipientCells = RECIPIENT_CONFIGS.flatMap((config) => {
+      const dist = row.distribution.find((d) => d.shareKey === config.shareKey);
+      return [
+        dist?.amount ?? '',
+        dist?.paid ? 'Yes' : 'No',
+      ];
+    });
+
     return [
       booking.bookingRef,
       booking.guestName,
@@ -35,7 +50,7 @@ export function downloadRevenueCsv(bookings, range, filename = 'pakrism-revenue.
       row.collectedInPeriod,
       row.profit ?? '',
       row.profitPercentage != null ? row.profitPercentage.toFixed(1) : '',
-      ...row.partnerShares.map((s) => s.amount ?? ''),
+      ...recipientCells,
       row.status,
     ];
   });

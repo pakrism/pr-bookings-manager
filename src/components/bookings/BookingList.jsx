@@ -14,7 +14,7 @@ import {
 } from '../../utils/bookingFilters';
 import { BOOKING_SORT_OPTIONS } from '../../utils/bookingSort';
 import { formatMonthLabel, groupByMonthKey } from '../../utils/datePeriods';
-import { getPartnerShareAmount } from '../../utils/partnerProfit';
+import { getProfitDistribution } from '../../utils/partnerProfit';
 import { getProfitPercentage } from '../../utils/revenueMetrics';
 import { useMediaQuery } from '../../hooks/useMediaQuery';
 import BookingRowMenu from './BookingRowMenu';
@@ -32,8 +32,9 @@ function BookingRowContent({
 }) {
   const resolvedStatus = resolveBookingStatus(booking);
   const profit = getBookingProfit(booking);
-  const partnerShare = getPartnerShareAmount(booking);
   const profitPercentage = getProfitPercentage(profit, booking.packagePrice);
+  const distribution = getProfitDistribution(booking);
+  const paidPayouts = distribution.filter((row) => row.paid).length;
 
   function getGroupDisplay() {
     if (booking.groupType === 'Other' && booking.groupTypeNote?.trim()) {
@@ -79,8 +80,8 @@ function BookingRowContent({
             <div>
               <div>{formatCurrency(profit)}</div>
               <div className="table-subtext">
-                {partnerShare != null
-                  ? `${formatCurrency(partnerShare)} / partner`
+                {distribution.length
+                  ? `${paidPayouts}/${distribution.length} payouts paid`
                   : '-'}
               </div>
               <div className="table-subtext">{`${profitPercentage?.toFixed(1) ?? '-'}% margin`}</div>
@@ -140,12 +141,10 @@ function BookingRowContent({
           <span>{formatCurrency(booking.packagePrice)}</span>
         </div>
         <div>
-          <span className="booking-card-label">Profit / share / %</span>
+          <span className="booking-card-label">Profit / payouts / %</span>
           <span>
             {profit != null
-              ? `${formatCurrency(profit)} / ${formatCurrency(
-                  partnerShare
-                )} / ${profitPercentage?.toFixed(1) ?? '-'}%`
+              ? `${formatCurrency(profit)} · ${paidPayouts}/${distribution.length} paid · ${profitPercentage?.toFixed(1) ?? '-'}%`
               : '-'}
           </span>
         </div>

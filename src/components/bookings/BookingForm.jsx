@@ -9,8 +9,7 @@ import {
 import { formatCurrency, getStatusBadgeClass } from '../../utils/helpers';
 import { resolveFormBookingStatus } from '../../utils/bookingStatus';
 import { computeRemainingAmount, getTotalPaid } from '../../utils/payments';
-import { getPartnerShareAmount } from '../../utils/partnerProfit';
-import { PARTNERS } from '../../data/constants';
+import ProfitShareBreakdown from '../profit/ProfitShareBreakdown';
 
 function BookingForm({
   bookingForm,
@@ -477,12 +476,11 @@ function BookingForm({
                     </div>
                   </div>
 
-                  {getPartnerShareAmount(bookingForm) != null && (
-                    <p className="form-hint partner-share-hint">
-                      Partner share (each, 50%):{' '}
-                      {formatCurrency(getPartnerShareAmount(bookingForm))} —{' '}
-                      {PARTNERS.join(' & ')}
-                    </p>
+                  {(bookingForm.totalProfit !== '' ||
+                    bookingForm.totalExpenses !== '') && (
+                    <div className="partner-share-preview">
+                      <ProfitShareBreakdown booking={bookingForm} compact />
+                    </div>
                   )}
                 </div>
 

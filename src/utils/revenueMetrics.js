@@ -1,8 +1,11 @@
 import { getBookingProfit, getBookingExpenses } from './bookingFinancials';
 import { getBookingBalance } from './bookingBalance';
 import { getPaymentsFromBooking, getTotalPaid } from './payments';
-import { getPartnerShareAmount } from './partnerProfit';
-import { PARTNERS } from '../data/constants';
+import {
+  getRecipientTotals,
+  getPoolTotals,
+  getProfitDistribution,
+} from './partnerProfit';
 import {
   toMonthKey,
   getPeriodRange,
@@ -107,13 +110,8 @@ export function computeRevenueMetrics(bookings, preset, customStart, customEnd) 
   }, 0);
   const profitPercentage = getProfitPercentage(netProfit, grossRevenue);
 
-  const partnerTotals = {};
-  for (const partner of PARTNERS) {
-    partnerTotals[partner] = inPeriod.reduce((sum, b) => {
-      const share = getPartnerShareAmount(b);
-      return sum + (share ?? 0);
-    }, 0);
-  }
+  const poolTotals = getPoolTotals(inPeriod);
+  const recipientTotals = getRecipientTotals(inPeriod);
 
   return {
     bookingCount: inPeriod.length,
@@ -123,7 +121,8 @@ export function computeRevenueMetrics(bookings, preset, customStart, customEnd) 
     expenses,
     netProfit,
     profitPercentage,
-    partnerTotals,
+    poolTotals,
+    recipientTotals,
     bookings: inPeriod,
   };
 }
@@ -159,9 +158,6 @@ export function getRevenueTableRow(booking, range) {
     profit,
     profitPercentage: getProfitPercentage(profit, revenue),
     status: resolveBookingStatus(booking),
-    partnerShares: PARTNERS.map((partner) => ({
-      partner,
-      amount: getPartnerShareAmount(booking),
-    })),
+    distribution: getProfitDistribution(booking),
   };
 }

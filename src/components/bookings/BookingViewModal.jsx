@@ -9,9 +9,15 @@ import { resolveBookingStatus } from '../../utils/bookingStatus';
 import { normalizeBookingTourType } from '../../utils/tourType';
 import { getPaymentsFromBooking, getTotalPaid } from '../../utils/payments';
 import { generateInvoicePDF } from '../../utils/invoice';
-import { getPartnerShares } from '../../utils/partnerProfit';
+import ProfitShareBreakdown from '../profit/ProfitShareBreakdown';
 
-function BookingViewModal({ booking, onClose, canEdit = true, onEdit }) {
+function BookingViewModal({
+  booking,
+  onClose,
+  canEdit = true,
+  onEdit,
+  onToggleProfitSharePaid,
+}) {
   const [showHistory, setShowHistory] = useState(false);
 
   useEffect(() => {
@@ -146,13 +152,6 @@ function BookingViewModal({ booking, onClose, canEdit = true, onEdit }) {
                   ? formatCurrency(getBookingProfit(booking))
                   : '-'}
               </div>
-              {hasBookingFinancials(booking) &&
-                getPartnerShares(booking).map(({ partner, amount }) => (
-                  <div key={partner}>
-                    <strong>{partner} share (50%):</strong>{' '}
-                    {amount != null ? formatCurrency(amount) : '-'}
-                  </div>
-                ))}
               <div>
                 <strong>Status:</strong>{' '}
                 <span className={getStatusBadgeClass(resolvedStatus)}>
@@ -173,6 +172,19 @@ function BookingViewModal({ booking, onClose, canEdit = true, onEdit }) {
               </div>
             )}
           </div>
+
+          {hasBookingFinancials(booking) && (
+            <div className="form-section">
+              <div className="form-section-title">Profit distribution</div>
+              <ProfitShareBreakdown
+                booking={booking}
+                canEdit={canEdit}
+                onTogglePaid={(shareKey, paid) =>
+                  onToggleProfitSharePaid?.(booking.id, shareKey, paid)
+                }
+              />
+            </div>
+          )}
 
           {!!booking.auditLog?.length && (
             <div className="form-section">

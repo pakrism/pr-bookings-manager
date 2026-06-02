@@ -41,8 +41,10 @@ import {
 } from './utils/auditLog';
 import { downloadBookingsCsv } from './utils/exportBookingsCsv';
 import { prepareBookingsForList } from './utils/bookingFilters';
-import { getPartnerShareAmount } from './utils/partnerProfit';
-import { PARTNERS } from './data/constants';
+import {
+  getPoolTotals,
+  normalizeProfitSharePaid,
+} from './utils/partnerProfit';
 
 import {
   getApprovedUserProfile,
@@ -260,16 +262,7 @@ function App() {
   const profitMargin =
     totalRevenue > 0 ? Math.round((totalProfit / totalRevenue) * 100) : 0;
 
-  const partnerShareTotals = PARTNERS.reduce(
-    (acc, partner) => {
-      acc[partner] = bookings.reduce((sum, booking) => {
-        const share = getPartnerShareAmount(booking);
-        return sum + (share ?? 0);
-      }, 0);
-      return acc;
-    },
-    {}
-  );
+  const poolTotals = getPoolTotals(bookings);
 
   const completedTrips = bookings.filter(
     (booking) => resolveBookingStatus(booking) === 'Completed'
@@ -679,6 +672,7 @@ function App() {
         const updatedBooking = {
           bookingRef: existingBooking?.bookingRef || '',
           ...bookingPayload,
+          profitSharePaid: existingBooking?.profitSharePaid,
           createdByUid: existingBooking?.createdByUid || authUser.uid,
           createdByName: existingBooking?.createdByName || userProfile.fullName,
           createdAt: existingBooking?.createdAt || null,
@@ -770,6 +764,33 @@ function App() {
       bookedBy: booking.bookedBy || '',
     });
     setIsBookingModalOpen(true);
+  }
+
+  async function handleToggleProfitSharePaid(bookingId, shareKey, paid) {
+    const booking = bookings.find((item) => item.id === bookingId);
+    if (!booking || !authUser || !userProfile) return;
+
+    const profitSharePaid = {
+      ...normalizeProfitSharePaid(booking.profitSharePaid),
+      [shareKey]: paid,
+    };
+
+    try {
+      await updateBooking(bookingId, {
+        profitSharePaid,
+        updatedByUid: authUser.uid,
+        updatedByName: userProfile.fullName,
+      });
+
+      if (viewBooking?.id === bookingId) {
+        setViewBooking({ ...viewBooking, profitSharePaid });
+      }
+
+      showToast(paid ? 'Marked as paid.' : 'Marked as unpaid.');
+    } catch (error) {
+      console.error('Profit share paid toggle error:', error);
+      showToast('Failed to update payout status.', 'error');
+    }
   }
 
   async function handleDeleteBooking(bookingId) {
@@ -903,17 +924,25 @@ function App() {
             <div className="dashboard-card-icon teal">✓</div>
           </div>
 
-          {PARTNERS.map((partner) => (
-            <div key={partner} className="dashboard-card">
-              <div>
-                <div className="dashboard-card-label">{partner} (50%)</div>
-                <div className="dashboard-card-value">
-                  {formatCurrency(partnerShareTotals[partner] ?? 0)}
-                </div>
+          <div className="dashboard-card">
+            <div>
+              <div className="dashboard-card-label">Zohaib pool (50%)</div>
+              <div className="dashboard-card-value">
+                {formatCurrency(poolTotals.zohaib ?? 0)}
               </div>
-              <div className="dashboard-card-icon blue">👤</div>
             </div>
-          ))}
+            <div className="dashboard-card-icon blue">👤</div>
+          </div>
+
+          <div className="dashboard-card">
+            <div>
+              <div className="dashboard-card-label">Pervaiz pool (50%)</div>
+              <div className="dashboard-card-value">
+                {formatCurrency(poolTotals.pervaiz ?? 0)}
+              </div>
+            </div>
+            <div className="dashboard-card-icon blue">👤</div>
+          </div>
         </div>
 
         <div className="dashboard-table-card">
@@ -1081,6 +1110,8 @@ function App() {
               bookings={bookings}
               onViewBooking={(booking) => setViewBooking(booking)}
               onExportToast={() => showToast('Revenue CSV downloaded.')}
+              canEdit={isAdmin}
+              onToggleProfitSharePaid={handleToggleProfitSharePaid}
             />
           )}
 
@@ -1133,6 +1164,7 @@ function App() {
             onClose={() => setViewBooking(null)}
             canEdit={isAdmin}
             onEdit={handleEditBooking}
+            onToggleProfitSharePaid={handleToggleProfitSharePaid}
           />
         )}
 

@@ -1,27 +1,143 @@
 import { PARTNERS, PARTNER_SHARE_COUNT } from '../data/constants';
+import {
+  PROFIT_POOLS,
+  POOL_IDS,
+  getShareKey,
+  getAllRecipientConfigs,
+} from '../data/profitPools';
 import { getBookingProfit } from './bookingFinancials';
 
 export function getBookingProfitTotal(booking) {
   return getBookingProfit(booking);
 }
 
-export function getPartnerShareAmount(booking) {
+export function buildDefaultProfitSharePaid() {
+  const paid = {};
+  for (const { shareKey } of getAllRecipientConfigs()) {
+    paid[shareKey] = false;
+  }
+  return paid;
+}
+
+export function normalizeProfitSharePaid(stored) {
+  const defaults = buildDefaultProfitSharePaid();
+  if (!stored || typeof stored !== 'object') {
+    return defaults;
+  }
+  return { ...defaults, ...stored };
+}
+
+export function isProfitSharePaid(booking, shareKey) {
+  const paid = normalizeProfitSharePaid(booking?.profitSharePaid);
+  return Boolean(paid[shareKey]);
+}
+
+export function getProfitPoolAmount(booking, poolId) {
   const profit = getBookingProfitTotal(booking);
   if (profit == null) return null;
+  if (!POOL_IDS.includes(poolId)) return null;
   return profit / PARTNER_SHARE_COUNT;
 }
 
+/** @deprecated Use getProfitPoolAmount; kept for top-level 50% display */
+export function getPartnerShareAmount(booking) {
+  return getProfitPoolAmount(booking, 'zohaib');
+}
+
+export function getProfitDistribution(booking) {
+  const profit = getBookingProfitTotal(booking);
+  if (profit == null) return [];
+
+  const paidMap = normalizeProfitSharePaid(booking?.profitSharePaid);
+  const rows = [];
+
+  for (const poolId of POOL_IDS) {
+    const pool = PROFIT_POOLS[poolId];
+    const poolAmount = profit / PARTNER_SHARE_COUNT;
+
+    for (const recipient of pool.recipients) {
+      const shareKey = getShareKey(poolId, recipient.key);
+      const amount = (poolAmount * recipient.percent) / 100;
+      rows.push({
+        poolId,
+        poolLabel: pool.label,
+        recipientKey: recipient.key,
+        label: recipient.label,
+        percentOfPool: recipient.percent,
+        shareKey,
+        amount,
+        paid: Boolean(paidMap[shareKey]),
+      });
+    }
+  }
+
+  return rows;
+}
+
 export function getPartnerShares(booking) {
-  const share = getPartnerShareAmount(booking);
-  return PARTNERS.map((partner) => ({
-    partner,
-    amount: share,
-  }));
+  return PARTNERS.map((partner) => {
+    const poolId = partner.toLowerCase();
+    return {
+      partner,
+      amount: getProfitPoolAmount(booking, poolId),
+    };
+  });
+}
+
+export function getPoolTotals(bookings) {
+  const totals = {};
+  for (const poolId of POOL_IDS) {
+    totals[poolId] = bookings.reduce((sum, booking) => {
+      const amount = getProfitPoolAmount(booking, poolId);
+      return sum + (amount ?? 0);
+    }, 0);
+  }
+  return totals;
+}
+
+export function getRecipientTotals(bookings) {
+  const configs = getAllRecipientConfigs();
+  const totals = {};
+
+  for (const config of configs) {
+    totals[config.shareKey] = {
+      shareKey: config.shareKey,
+      poolId: config.poolId,
+      recipientKey: config.recipientKey,
+      label: config.label,
+      total: 0,
+      paidTotal: 0,
+      unpaidTotal: 0,
+      paidCount: 0,
+      unpaidCount: 0,
+    };
+  }
+
+  for (const booking of bookings) {
+    const distribution = getProfitDistribution(booking);
+    for (const row of distribution) {
+      const entry = totals[row.shareKey];
+      if (!entry) continue;
+      entry.total += row.amount;
+      if (row.paid) {
+        entry.paidTotal += row.amount;
+        entry.paidCount += 1;
+      } else {
+        entry.unpaidTotal += row.amount;
+        entry.unpaidCount += 1;
+      }
+    }
+  }
+
+  return totals;
 }
 
 export function sumPartnerShares(bookings, partnerName) {
+  const poolId = partnerName?.toLowerCase();
   return bookings.reduce((sum, booking) => {
-    const share = getPartnerShareAmount(booking);
-    return sum + (share ?? 0);
+    const amount = getProfitPoolAmount(booking, poolId);
+    return sum + (amount ?? 0);
   }, 0);
 }
+
+export { getAllRecipientConfigs, getShareKey };
