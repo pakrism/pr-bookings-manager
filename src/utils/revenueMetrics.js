@@ -12,15 +12,7 @@ import {
 import { resolveBookingStatus } from './bookingStatus';
 
 export function getRevenueAttributionDate(booking) {
-  const payments = getPaymentsFromBooking(booking);
-  if (!payments.length) {
-    return booking.travelStartDate || '';
-  }
-
-  const sorted = [...payments].sort((a, b) =>
-    (b.paidAt || '').localeCompare(a.paidAt || '')
-  );
-  return sorted[0]?.paidAt || booking.travelStartDate || '';
+  return booking.travelStartDate || '';
 }
 
 export function getRevenueAttributionMonth(booking) {
@@ -47,6 +39,12 @@ export function getCollectedInPeriod(booking, range) {
   );
 }
 
+export function getProfitPercentage(profit, revenue) {
+  const safeRevenue = Number(revenue || 0);
+  if (safeRevenue <= 0 || profit == null) return null;
+  return (Number(profit) / safeRevenue) * 100;
+}
+
 export function filterBookingsByRevenuePeriod(
   bookings,
   preset,
@@ -58,21 +56,10 @@ export function filterBookingsByRevenuePeriod(
   }
 
   const range = getPeriodRange(preset, customStart, customEnd);
-
-  if (preset === 'custom' && range) {
-    return bookings.filter((booking) => {
-      const payments = getPaymentsInRange(booking, range);
-      if (payments.length > 0) return true;
-      return isDateInRange(getRevenueAttributionDate(booking), range);
-    });
-  }
-
   if (range) {
-    return bookings.filter((booking) => {
-      const paymentsInRange = getPaymentsInRange(booking, range);
-      if (paymentsInRange.length > 0) return true;
-      return isDateInRange(getRevenueAttributionDate(booking), range);
-    });
+    return bookings.filter((booking) =>
+      isDateInRange(getRevenueAttributionDate(booking), range)
+    );
   }
 
   return bookings.filter((booking) =>
@@ -118,6 +105,7 @@ export function computeRevenueMetrics(bookings, preset, customStart, customEnd) 
     const profit = getBookingProfit(b);
     return sum + (profit ?? 0);
   }, 0);
+  const profitPercentage = getProfitPercentage(netProfit, grossRevenue);
 
   const partnerTotals = {};
   for (const partner of PARTNERS) {
@@ -134,6 +122,7 @@ export function computeRevenueMetrics(bookings, preset, customStart, customEnd) 
     outstanding,
     expenses,
     netProfit,
+    profitPercentage,
     partnerTotals,
     bookings: inPeriod,
   };
@@ -161,11 +150,14 @@ export function getLastMonthsBreakdown(bookings, monthCount = 6) {
 }
 
 export function getRevenueTableRow(booking, range) {
+  const revenue = Number(booking.packagePrice || 0);
+  const profit = getBookingProfit(booking);
   return {
     booking,
     attributionMonth: getRevenueAttributionMonth(booking),
     collectedInPeriod: getCollectedInPeriod(booking, range),
-    profit: getBookingProfit(booking),
+    profit,
+    profitPercentage: getProfitPercentage(profit, revenue),
     status: resolveBookingStatus(booking),
     partnerShares: PARTNERS.map((partner) => ({
       partner,

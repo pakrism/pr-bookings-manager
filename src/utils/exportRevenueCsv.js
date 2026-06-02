@@ -19,6 +19,7 @@ export function downloadRevenueCsv(bookings, range, filename = 'pakrism-revenue.
     'Package Price',
     'Collected (period)',
     'Profit',
+    'Profit %',
     ...PARTNERS.map((p) => `${p} Share`),
     'Status',
   ];
@@ -33,6 +34,7 @@ export function downloadRevenueCsv(bookings, range, filename = 'pakrism-revenue.
       booking.packagePrice,
       row.collectedInPeriod,
       row.profit ?? '',
+      row.profitPercentage != null ? row.profitPercentage.toFixed(1) : '',
       ...row.partnerShares.map((s) => s.amount ?? ''),
       row.status,
     ];

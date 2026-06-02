@@ -5,7 +5,6 @@ import {
   getStatusBadgeClass,
   totalPersons,
 } from '../../utils/helpers';
-import { getBookingBalance } from '../../utils/bookingBalance';
 import { getBookingProfit } from '../../utils/bookingFinancials';
 import { resolveBookingStatus } from '../../utils/bookingStatus';
 import { normalizeBookingTourType } from '../../utils/tourType';
@@ -16,6 +15,7 @@ import {
 import { BOOKING_SORT_OPTIONS } from '../../utils/bookingSort';
 import { formatMonthLabel, groupByMonthKey } from '../../utils/datePeriods';
 import { getPartnerShareAmount } from '../../utils/partnerProfit';
+import { getProfitPercentage } from '../../utils/revenueMetrics';
 import { useMediaQuery } from '../../hooks/useMediaQuery';
 import BookingRowMenu from './BookingRowMenu';
 
@@ -31,9 +31,9 @@ function BookingRowContent({
   canEdit,
 }) {
   const resolvedStatus = resolveBookingStatus(booking);
-  const balance = getBookingBalance(booking);
   const profit = getBookingProfit(booking);
   const partnerShare = getPartnerShareAmount(booking);
+  const profitPercentage = getProfitPercentage(profit, booking.packagePrice);
 
   function getGroupDisplay() {
     if (booking.groupType === 'Other' && booking.groupTypeNote?.trim()) {
@@ -83,13 +83,11 @@ function BookingRowContent({
                   ? `${formatCurrency(partnerShare)} / partner`
                   : '-'}
               </div>
+              <div className="table-subtext">{`${profitPercentage?.toFixed(1) ?? '-'}% margin`}</div>
             </div>
           ) : (
             '-'
           )}
-        </td>
-        <td>
-          <span className="balance-text">{formatCurrency(balance)}</span>
         </td>
         <td>
           <BookingRowMenu
@@ -142,16 +140,14 @@ function BookingRowContent({
           <span>{formatCurrency(booking.packagePrice)}</span>
         </div>
         <div>
-          <span className="booking-card-label">Profit / share</span>
+          <span className="booking-card-label">Profit / share / %</span>
           <span>
             {profit != null
-              ? `${formatCurrency(profit)} / ${formatCurrency(partnerShare)}`
+              ? `${formatCurrency(profit)} / ${formatCurrency(
+                  partnerShare
+                )} / ${profitPercentage?.toFixed(1) ?? '-'}%`
               : '-'}
           </span>
-        </div>
-        <div>
-          <span className="booking-card-label">Balance</span>
-          <span className="balance-text">{formatCurrency(balance)}</span>
         </div>
         <div>
           <span className="booking-card-label">Persons</span>
@@ -190,13 +186,15 @@ function MonthGroupHeader({ monthKey, bookings }) {
     const p = getBookingProfit(b);
     return sum + (p ?? 0);
   }, 0);
+  const profitPercentage = getProfitPercentage(profit, revenue);
 
   return (
     <div className="month-group-header">
       <h3 className="month-group-title">{formatMonthLabel(monthKey)}</h3>
       <span className="month-group-meta">
         {bookings.length} booking{bookings.length !== 1 ? 's' : ''} •{' '}
-        {formatCurrency(revenue)} revenue • {formatCurrency(profit)} profit
+        {formatCurrency(revenue)} revenue • {formatCurrency(profit)} profit •{' '}
+        {profitPercentage?.toFixed(1) ?? '-'}% margin
       </span>
     </div>
   );
@@ -284,7 +282,6 @@ function BookingList({
               <th>Status</th>
               <th>Price</th>
               <th>Profit</th>
-              <th>Balance</th>
               <th aria-label="Actions" />
             </tr>
           </thead>

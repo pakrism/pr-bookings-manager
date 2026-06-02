@@ -51,6 +51,11 @@ function RevenuePage({ bookings, onViewBooking, onExportToast }) {
     onExportToast?.();
   }
 
+  function formatPercent(value) {
+    if (value == null || Number.isNaN(value)) return '-';
+    return `${value.toFixed(1)}%`;
+  }
+
   return (
     <div className="revenue-page">
       <div className="revenue-toolbar bookings-toolbar-wrap">
@@ -144,6 +149,9 @@ function RevenuePage({ bookings, onViewBooking, onExportToast }) {
             <div className="dashboard-card-value">
               {formatCurrency(metrics.netProfit)}
             </div>
+            <div className="table-subtext">
+              Margin {formatPercent(metrics.profitPercentage)}
+            </div>
           </div>
           <div className="dashboard-card-icon green">💰</div>
         </div>
@@ -163,7 +171,9 @@ function RevenuePage({ bookings, onViewBooking, onExportToast }) {
 
       {monthlyBreakdown.length > 0 && (
         <div className="revenue-breakdown-card">
-          <h3 className="dashboard-table-title">Last 6 months (by payment month)</h3>
+          <h3 className="dashboard-table-title">
+            Last 6 months (by departure month)
+          </h3>
           <div className="revenue-breakdown-scroll">
             <table className="bookings-table revenue-breakdown-table">
               <thead>
@@ -172,6 +182,7 @@ function RevenuePage({ bookings, onViewBooking, onExportToast }) {
                   <th>Bookings</th>
                   <th>Revenue</th>
                   <th>Profit</th>
+                  <th>Profit %</th>
                   {PARTNERS.map((p) => (
                     <th key={p}>{p}</th>
                   ))}
@@ -184,6 +195,7 @@ function RevenuePage({ bookings, onViewBooking, onExportToast }) {
                     <td>{row.bookingCount}</td>
                     <td>{formatCurrency(row.grossRevenue)}</td>
                     <td>{formatCurrency(row.netProfit)}</td>
+                    <td>{formatPercent(row.profitPercentage)}</td>
                     {PARTNERS.map((p) => (
                       <td key={p}>{formatCurrency(row.partnerTotals[p] ?? 0)}</td>
                     ))}
@@ -219,6 +231,7 @@ function RevenuePage({ bookings, onViewBooking, onExportToast }) {
                   <th>Price</th>
                   <th>Collected</th>
                   <th>Profit</th>
+                  <th>Profit %</th>
                   {PARTNERS.map((p) => (
                     <th key={p}>{p}</th>
                   ))}
@@ -242,6 +255,7 @@ function RevenuePage({ bookings, onViewBooking, onExportToast }) {
                       <td>{formatCurrency(booking.packagePrice)}</td>
                       <td>{formatCurrency(row.collectedInPeriod)}</td>
                       <td>{profit != null ? formatCurrency(profit) : '-'}</td>
+                      <td>{formatPercent(row.profitPercentage)}</td>
                       {row.partnerShares.map((s) => (
                         <td key={s.partner}>
                           {s.amount != null ? formatCurrency(s.amount) : '-'}

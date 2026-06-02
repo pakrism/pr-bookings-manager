@@ -222,7 +222,7 @@ function App() {
     if (screen === 'revenue') {
       return {
         title: 'Revenue',
-        subtitle: 'Payment-month attribution and partner shares',
+        subtitle: 'Departure-month attribution and partner shares',
       };
     }
 
