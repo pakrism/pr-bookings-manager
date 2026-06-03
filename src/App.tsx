@@ -47,7 +47,7 @@ import {
 } from './utils/partnerProfit';
 
 import {
-  buildSessionProfile,
+  getApprovedUserProfile,
   loginWithEmail,
   logoutUser,
   watchAuth,
@@ -104,10 +104,7 @@ function App() {
   const bookingSyncStarted = useRef(false);
   const isBookingModalOpenRef = useRef(false);
 
-  const actorName =
-    userProfile?.fullName ||
-    authUser?.email?.split('@')[0] ||
-    'User';
+  const isAdmin = userProfile?.role !== 'viewer';
 
   useEffect(() => {
     isBookingModalOpenRef.current = isBookingModalOpen;
@@ -130,16 +127,35 @@ function App() {
         return;
       }
 
-      setAuthUser(firebaseUser);
-      setUserProfile(buildSessionProfile(firebaseUser));
-      setAuthLoading(false);
+      try {
+        const profile = await getApprovedUserProfile(firebaseUser.uid);
+
+        if (!profile || profile.isActive !== true) {
+          await logoutUser();
+          setAuthError('Access not approved.');
+          setAuthUser(null);
+          setUserProfile(null);
+          setAuthLoading(false);
+          return;
+        }
+
+        setAuthUser(firebaseUser);
+        setUserProfile(profile);
+      } catch (error) {
+        console.error('Profile verification error:', error);
+        setAuthError('Failed to verify access.');
+        setAuthUser(null);
+        setUserProfile(null);
+      } finally {
+        setAuthLoading(false);
+      }
     });
 
     return () => unsubscribe();
   }, []);
 
   useEffect(() => {
-    if (!authUser) return;
+    if (!authUser || !userProfile) return;
 
     const unsubPackages = subscribeToPackages((items) => {
       setPackages(items);
@@ -154,10 +170,10 @@ function App() {
       unsubBookings();
       bookingSyncStarted.current = false;
     };
-  }, [authUser]);
+  }, [authUser, userProfile]);
 
   useEffect(() => {
-    if (!authUser || !bookings.length) return undefined;
+    if (!authUser || !userProfile || !bookings.length) return undefined;
     if (isBookingModalOpenRef.current) return undefined;
 
     const timer = window.setTimeout(async () => {
@@ -181,7 +197,7 @@ function App() {
     }, 2000);
 
     return () => window.clearTimeout(timer);
-  }, [authUser, bookings]);
+  }, [authUser, userProfile, bookings]);
 
   const pageMeta = useMemo(() => {
     if (screen === 'dashboard') {
@@ -488,9 +504,9 @@ function App() {
       imageUrl: packageForm.imageUrl?.trim() || '',
       inclusionsText: packageForm.inclusionsText || '',
       isActive: packageForm.isActive,
-      createdByName: existingPackage?.createdByName || actorName,
+      createdByName: existingPackage?.createdByName || userProfile.fullName,
       createdByUid: existingPackage?.createdByUid || authUser.uid,
-      updatedByName: actorName,
+      updatedByName: userProfile.fullName,
       updatedByUid: authUser.uid,
       createdAt: existingPackage?.createdAt || null,
     };
@@ -558,6 +574,11 @@ function App() {
 
   async function handleSaveBooking(event) {
     event.preventDefault();
+
+    if (!isAdmin) {
+      showToast('You have read-only access.', 'error');
+      return;
+    }
 
     if (!bookingForm.guestName.trim()) {
       showToast('Please enter guest name.', 'error');
@@ -641,7 +662,7 @@ function App() {
       bookingStatus,
       bookedBy: bookingForm.bookedBy,
       updatedByUid: authUser.uid,
-      updatedByName: actorName,
+      updatedByName: userProfile.fullName,
     };
 
     setIsSavingBooking(true);
@@ -653,14 +674,14 @@ function App() {
           ...bookingPayload,
           profitSharePaid: existingBooking?.profitSharePaid,
           createdByUid: existingBooking?.createdByUid || authUser.uid,
-          createdByName: existingBooking?.createdByName || actorName,
+          createdByName: existingBooking?.createdByName || userProfile.fullName,
           createdAt: existingBooking?.createdAt || null,
           auditLog: appendAuditLog(
             existingBooking?.auditLog,
             buildAuditEntry({
               action: 'updated',
               byUid: authUser.uid,
-              byName: actorName,
+              byName: userProfile.fullName,
               summary: buildBookingAuditSummary(existingBooking, bookingPayload),
             })
           ),
@@ -675,13 +696,13 @@ function App() {
           bookingRef,
           ...bookingPayload,
           createdByUid: authUser.uid,
-          createdByName: actorName,
+          createdByName: userProfile.fullName,
           createdAt: null,
           auditLog: [
             buildAuditEntry({
               action: 'created',
               byUid: authUser.uid,
-              byName: actorName,
+              byName: userProfile.fullName,
               summary: 'Booking created',
             }),
           ],
@@ -747,7 +768,7 @@ function App() {
 
   async function handleToggleProfitSharePaid(bookingId, shareKey, paid) {
     const booking = bookings.find((item) => item.id === bookingId);
-    if (!booking || !authUser) return;
+    if (!booking || !authUser || !userProfile) return;
 
     const profitSharePaid = {
       ...normalizeProfitSharePaid(booking.profitSharePaid),
@@ -758,7 +779,7 @@ function App() {
       await updateBooking(bookingId, {
         profitSharePaid,
         updatedByUid: authUser.uid,
-        updatedByName: actorName,
+        updatedByName: userProfile.fullName,
       });
 
       if (viewBooking?.id === bookingId) {
@@ -805,9 +826,11 @@ function App() {
       <>
         <div className="page-actions">
           <div className="page-section-title">Overview</div>
-          <button className="header-action-btn" onClick={openNewBookingModal}>
-            + New Booking
-          </button>
+          {isAdmin && (
+            <button className="header-action-btn" onClick={openNewBookingModal}>
+              + New Booking
+            </button>
+          )}
         </div>
 
         <div className="dashboard-grid">
@@ -943,6 +966,7 @@ function App() {
             onView={(booking) => setViewBooking(booking)}
             onEdit={handleEditBooking}
             onDelete={handleDeleteBooking}
+            canEdit={isAdmin}
             variant="compact"
             showToolbar={false}
           />
@@ -961,7 +985,7 @@ function App() {
     );
   }
 
-  if (!authUser) {
+  if (!authUser || !userProfile) {
     return (
       <LoginPage
         onLogin={handleLogin}
@@ -979,8 +1003,9 @@ function App() {
         onResetLocalData={handleResetLocalData}
         bookingCount={bookings.length}
         packageCount={packages.length}
-        currentUserName={userProfile?.fullName || actorName}
-        currentUserEmail={userProfile?.email || authUser.email || ''}
+        currentUserName={userProfile.fullName}
+        currentUserEmail={userProfile.email}
+        userRole={userProfile.role}
         onSignOut={handleSignOut}
       />
 
@@ -999,9 +1024,9 @@ function App() {
 
             <div className="topbar-user-chip">
               <span className="topbar-avatar">
-                {(userProfile?.fullName || actorName)?.trim()?.[0]?.toUpperCase() || 'U'}
+                {userProfile.fullName?.trim()?.[0]?.toUpperCase() || 'U'}
               </span>
-              <span>{userProfile?.fullName || actorName}</span>
+              <span>{userProfile.fullName || 'User'}</span>
             </div>
           </div>
         </header>
@@ -1013,18 +1038,21 @@ function App() {
             <>
               <div className="page-actions">
                 <div className="page-section-title">All packages</div>
-                <button
-                  className="header-action-btn"
-                  onClick={openNewPackageModal}
-                >
-                  + Add Package
-                </button>
+                {isAdmin && (
+                  <button
+                    className="header-action-btn"
+                    onClick={openNewPackageModal}
+                  >
+                    + Add Package
+                  </button>
+                )}
               </div>
 
               <PackageList
                 packages={packages}
                 onEdit={handleEditPackage}
                 onDelete={handleDeletePackage}
+                canEdit={isAdmin}
               />
             </>
           )}
@@ -1048,12 +1076,14 @@ function App() {
                   >
                     Export CSV
                   </button>
-                  <button
-                    className="header-action-btn"
-                    onClick={openNewBookingModal}
-                  >
-                    + New Booking
-                  </button>
+                  {isAdmin && (
+                    <button
+                      className="header-action-btn"
+                      onClick={openNewBookingModal}
+                    >
+                      + New Booking
+                    </button>
+                  )}
                 </div>
               </div>
 
@@ -1070,6 +1100,7 @@ function App() {
                 onView={(booking) => setViewBooking(booking)}
                 onEdit={handleEditBooking}
                 onDelete={handleDeleteBooking}
+                canEdit={isAdmin}
               />
             </>
           )}
@@ -1079,7 +1110,7 @@ function App() {
               bookings={bookings}
               onViewBooking={(booking) => setViewBooking(booking)}
               onExportToast={() => showToast('Revenue CSV downloaded.')}
-              canEdit
+              canEdit={isAdmin}
               onToggleProfitSharePaid={handleToggleProfitSharePaid}
             />
           )}
@@ -1123,6 +1154,7 @@ function App() {
             onSubmit={handleSaveBooking}
             onClose={closeBookingModal}
             isSubmitting={isSavingBooking}
+            readOnly={!isAdmin}
           />
         )}
 
@@ -1130,6 +1162,7 @@ function App() {
           <BookingViewModal
             booking={viewBooking}
             onClose={() => setViewBooking(null)}
+            canEdit={isAdmin}
             onEdit={handleEditBooking}
             onToggleProfitSharePaid={handleToggleProfitSharePaid}
           />
