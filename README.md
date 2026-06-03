@@ -7,25 +7,22 @@ Internal booking management app for Pakrism (React + Vite + Firebase Firestore).
 - Dashboard KPIs (revenue, expenses, profit, advance, balance, margin, completed trips)
 - Bookings with payment ledger, auto status from travel dates, tour types, and financials
 - Package templates, schedule batches, PDF/iCal exports, CSV export, departure reminders
-- Role-based access: `admin` (full) vs `viewer` (read-only)
+- Firebase Authentication (email/password) for sign-in
 
 ## Firebase setup
 
-1. Copy `.env` with your Firebase web config.
+1. Copy `.env` with your Firebase web config (`VITE_FIREBASE_*`).
 2. Deploy Firestore rules from [`firestore.rules`](firestore.rules):
 
 ```bash
-firebase deploy --only firestore:rules
+firebase deploy --only firestore:rules --project YOUR_PROJECT_ID
 ```
 
-### User roles
+### Access control
 
-Add to each document in `users/{uid}`:
-
-- `isActive: true` (required for access)
-- `role: "admin"` or `role: "viewer"` (omit `role` defaults to admin in the app)
-
-Viewers can browse data but cannot create, edit, or delete bookings/packages.
+- **Sign-in:** Any user with a valid Firebase Auth account can log in.
+- **Data:** Firestore rules allow any signed-in user to read and write `bookings`, `packages`, and `counters`.
+- **`users/{uid}` documents are optional** and not required for app access.
 
 ## Development
 

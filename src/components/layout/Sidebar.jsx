@@ -6,7 +6,6 @@ function Sidebar({
   packageCount,
   currentUserName,
   currentUserEmail,
-  userRole = 'admin',
   onSignOut,
 }) {
   const navItems = [
@@ -55,9 +54,6 @@ function Sidebar({
           <div className="sidebar-user-meta">
             <div className="sidebar-user-name">{currentUserName || 'User'}</div>
             <div className="sidebar-user-email">{currentUserEmail || '-'}</div>
-            {userRole === 'viewer' && (
-              <div className="sidebar-role-badge">Read-only</div>
-            )}
           </div>
         </div>
 

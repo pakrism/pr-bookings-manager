@@ -14,15 +14,23 @@ import { db } from './firebase';
 const packagesRef = collection(db, 'packages');
 const bookingsRef = collection(db, 'bookings');
 
+function logSnapshotError(label, error) {
+  console.error(`Firestore ${label} subscription error:`, error);
+}
+
 export function subscribeToPackages(callback) {
   const q = query(packagesRef, orderBy('createdAt', 'desc'));
-  return onSnapshot(q, (snapshot) => {
-    const items = snapshot.docs.map((item) => ({
-      id: item.id,
-      ...item.data(),
-    }));
-    callback(items);
-  });
+  return onSnapshot(
+    q,
+    (snapshot) => {
+      const items = snapshot.docs.map((item) => ({
+        id: item.id,
+        ...item.data(),
+      }));
+      callback(items);
+    },
+    (error) => logSnapshotError('packages', error)
+  );
 }
 
 export async function createPackage(data) {
@@ -51,13 +59,17 @@ export async function removePackage(id) {
 
 export function subscribeToBookings(callback) {
   const q = query(bookingsRef, orderBy('createdAt', 'desc'));
-  return onSnapshot(q, (snapshot) => {
-    const items = snapshot.docs.map((item) => ({
-      id: item.id,
-      ...item.data(),
-    }));
-    callback(items);
-  });
+  return onSnapshot(
+    q,
+    (snapshot) => {
+      const items = snapshot.docs.map((item) => ({
+        id: item.id,
+        ...item.data(),
+      }));
+      callback(items);
+    },
+    (error) => logSnapshotError('bookings', error)
+  );
 }
 
 export async function createBooking(data) {

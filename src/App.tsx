@@ -104,7 +104,10 @@ function App() {
   const bookingSyncStarted = useRef(false);
   const isBookingModalOpenRef = useRef(false);
 
-  const isAdmin = userProfile?.role !== 'viewer';
+  const actorName =
+    userProfile?.fullName ||
+    authUser?.email?.split('@')[0] ||
+    'User';
 
   useEffect(() => {
     isBookingModalOpenRef.current = isBookingModalOpen;
@@ -136,7 +139,7 @@ function App() {
   }, []);
 
   useEffect(() => {
-    if (!authUser || !userProfile) return;
+    if (!authUser) return;
 
     const unsubPackages = subscribeToPackages((items) => {
       setPackages(items);
@@ -151,10 +154,10 @@ function App() {
       unsubBookings();
       bookingSyncStarted.current = false;
     };
-  }, [authUser, userProfile]);
+  }, [authUser]);
 
   useEffect(() => {
-    if (!authUser || !userProfile || !bookings.length) return undefined;
+    if (!authUser || !bookings.length) return undefined;
     if (isBookingModalOpenRef.current) return undefined;
 
     const timer = window.setTimeout(async () => {
@@ -178,7 +181,7 @@ function App() {
     }, 2000);
 
     return () => window.clearTimeout(timer);
-  }, [authUser, userProfile, bookings]);
+  }, [authUser, bookings]);
 
   const pageMeta = useMemo(() => {
     if (screen === 'dashboard') {
@@ -485,9 +488,9 @@ function App() {
       imageUrl: packageForm.imageUrl?.trim() || '',
       inclusionsText: packageForm.inclusionsText || '',
       isActive: packageForm.isActive,
-      createdByName: existingPackage?.createdByName || userProfile.fullName,
+      createdByName: existingPackage?.createdByName || actorName,
       createdByUid: existingPackage?.createdByUid || authUser.uid,
-      updatedByName: userProfile.fullName,
+      updatedByName: actorName,
       updatedByUid: authUser.uid,
       createdAt: existingPackage?.createdAt || null,
     };
@@ -555,11 +558,6 @@ function App() {
 
   async function handleSaveBooking(event) {
     event.preventDefault();
-
-    if (!isAdmin) {
-      showToast('You have read-only access.', 'error');
-      return;
-    }
 
     if (!bookingForm.guestName.trim()) {
       showToast('Please enter guest name.', 'error');
@@ -643,7 +641,7 @@ function App() {
       bookingStatus,
       bookedBy: bookingForm.bookedBy,
       updatedByUid: authUser.uid,
-      updatedByName: userProfile.fullName,
+      updatedByName: actorName,
     };
 
     setIsSavingBooking(true);
@@ -655,14 +653,14 @@ function App() {
           ...bookingPayload,
           profitSharePaid: existingBooking?.profitSharePaid,
           createdByUid: existingBooking?.createdByUid || authUser.uid,
-          createdByName: existingBooking?.createdByName || userProfile.fullName,
+          createdByName: existingBooking?.createdByName || actorName,
           createdAt: existingBooking?.createdAt || null,
           auditLog: appendAuditLog(
             existingBooking?.auditLog,
             buildAuditEntry({
               action: 'updated',
               byUid: authUser.uid,
-              byName: userProfile.fullName,
+              byName: actorName,
               summary: buildBookingAuditSummary(existingBooking, bookingPayload),
             })
           ),
@@ -677,13 +675,13 @@ function App() {
           bookingRef,
           ...bookingPayload,
           createdByUid: authUser.uid,
-          createdByName: userProfile.fullName,
+          createdByName: actorName,
           createdAt: null,
           auditLog: [
             buildAuditEntry({
               action: 'created',
               byUid: authUser.uid,
-              byName: userProfile.fullName,
+              byName: actorName,
               summary: 'Booking created',
             }),
           ],
@@ -749,7 +747,7 @@ function App() {
 
   async function handleToggleProfitSharePaid(bookingId, shareKey, paid) {
     const booking = bookings.find((item) => item.id === bookingId);
-    if (!booking || !authUser || !userProfile) return;
+    if (!booking || !authUser) return;
 
     const profitSharePaid = {
       ...normalizeProfitSharePaid(booking.profitSharePaid),
@@ -760,7 +758,7 @@ function App() {
       await updateBooking(bookingId, {
         profitSharePaid,
         updatedByUid: authUser.uid,
-        updatedByName: userProfile.fullName,
+        updatedByName: actorName,
       });
 
       if (viewBooking?.id === bookingId) {
@@ -807,11 +805,9 @@ function App() {
       <>
         <div className="page-actions">
           <div className="page-section-title">Overview</div>
-          {isAdmin && (
-            <button className="header-action-btn" onClick={openNewBookingModal}>
-              + New Booking
-            </button>
-          )}
+          <button className="header-action-btn" onClick={openNewBookingModal}>
+            + New Booking
+          </button>
         </div>
 
         <div className="dashboard-grid">
@@ -947,7 +943,6 @@ function App() {
             onView={(booking) => setViewBooking(booking)}
             onEdit={handleEditBooking}
             onDelete={handleDeleteBooking}
-            canEdit={isAdmin}
             variant="compact"
             showToolbar={false}
           />
@@ -966,7 +961,7 @@ function App() {
     );
   }
 
-  if (!authUser || !userProfile) {
+  if (!authUser) {
     return (
       <LoginPage
         onLogin={handleLogin}
@@ -984,9 +979,8 @@ function App() {
         onResetLocalData={handleResetLocalData}
         bookingCount={bookings.length}
         packageCount={packages.length}
-        currentUserName={userProfile.fullName}
-        currentUserEmail={userProfile.email}
-        userRole={userProfile.role}
+        currentUserName={userProfile?.fullName || actorName}
+        currentUserEmail={userProfile?.email || authUser.email || ''}
         onSignOut={handleSignOut}
       />
 
@@ -1005,9 +999,9 @@ function App() {
 
             <div className="topbar-user-chip">
               <span className="topbar-avatar">
-                {userProfile.fullName?.trim()?.[0]?.toUpperCase() || 'U'}
+                {(userProfile?.fullName || actorName)?.trim()?.[0]?.toUpperCase() || 'U'}
               </span>
-              <span>{userProfile.fullName || 'User'}</span>
+              <span>{userProfile?.fullName || actorName}</span>
             </div>
           </div>
         </header>
@@ -1019,21 +1013,18 @@ function App() {
             <>
               <div className="page-actions">
                 <div className="page-section-title">All packages</div>
-                {isAdmin && (
-                  <button
-                    className="header-action-btn"
-                    onClick={openNewPackageModal}
-                  >
-                    + Add Package
-                  </button>
-                )}
+                <button
+                  className="header-action-btn"
+                  onClick={openNewPackageModal}
+                >
+                  + Add Package
+                </button>
               </div>
 
               <PackageList
                 packages={packages}
                 onEdit={handleEditPackage}
                 onDelete={handleDeletePackage}
-                canEdit={isAdmin}
               />
             </>
           )}
@@ -1057,14 +1048,12 @@ function App() {
                   >
                     Export CSV
                   </button>
-                  {isAdmin && (
-                    <button
-                      className="header-action-btn"
-                      onClick={openNewBookingModal}
-                    >
-                      + New Booking
-                    </button>
-                  )}
+                  <button
+                    className="header-action-btn"
+                    onClick={openNewBookingModal}
+                  >
+                    + New Booking
+                  </button>
                 </div>
               </div>
 
@@ -1081,7 +1070,6 @@ function App() {
                 onView={(booking) => setViewBooking(booking)}
                 onEdit={handleEditBooking}
                 onDelete={handleDeleteBooking}
-                canEdit={isAdmin}
               />
             </>
           )}
@@ -1091,7 +1079,7 @@ function App() {
               bookings={bookings}
               onViewBooking={(booking) => setViewBooking(booking)}
               onExportToast={() => showToast('Revenue CSV downloaded.')}
-              canEdit={isAdmin}
+              canEdit
               onToggleProfitSharePaid={handleToggleProfitSharePaid}
             />
           )}
@@ -1135,7 +1123,6 @@ function App() {
             onSubmit={handleSaveBooking}
             onClose={closeBookingModal}
             isSubmitting={isSavingBooking}
-            readOnly={!isAdmin}
           />
         )}
 
@@ -1143,7 +1130,6 @@ function App() {
           <BookingViewModal
             booking={viewBooking}
             onClose={() => setViewBooking(null)}
-            canEdit={isAdmin}
             onEdit={handleEditBooking}
             onToggleProfitSharePaid={handleToggleProfitSharePaid}
           />
