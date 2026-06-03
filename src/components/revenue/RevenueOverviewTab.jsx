@@ -1,6 +1,7 @@
 import { formatCurrency } from '../../utils/helpers';
 import { getPoolPaidSummary } from '../../utils/partnerProfit';
 import { formatPercent } from './revenueConstants';
+import { PrimaryButton } from '../common/BrandButton';
 
 function RevenueOverviewTab({ metrics, onOpenPoolTab }) {
   const zohaibSummary = getPoolPaidSummary(metrics.recipientTotals, 'zohaib');
@@ -49,13 +50,13 @@ function RevenueOverviewTab({ metrics, onOpenPoolTab }) {
           <p className="revenue-pool-entry-split">
             Zohaib 55% · Fawad 35% · Sohaib 10%
           </p>
-          <button
+          <PrimaryButton
             type="button"
-            className="secondary-btn revenue-pool-entry-btn"
+            className="revenue-pool-entry-btn"
             onClick={() => onOpenPoolTab('zohaib')}
           >
             View Zohaib breakdown →
-          </button>
+          </PrimaryButton>
         </div>
 
         <div className="revenue-pool-entry-card">
@@ -73,13 +74,13 @@ function RevenueOverviewTab({ metrics, onOpenPoolTab }) {
           <p className="revenue-pool-entry-split">
             Mrs Pervaiz 20% · Aahid 5% · Skardu 15% · Pervaiz 60%
           </p>
-          <button
+          <PrimaryButton
             type="button"
-            className="secondary-btn revenue-pool-entry-btn"
+            className="revenue-pool-entry-btn"
             onClick={() => onOpenPoolTab('pervaiz')}
           >
             View Pervaiz breakdown →
-          </button>
+          </PrimaryButton>
         </div>
       </div>
     </div>

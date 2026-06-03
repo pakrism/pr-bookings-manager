@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { packageTypes } from '../../data/constants';
 import { getPackageImage } from '../../utils/helpers';
+import { OutlineButton, PrimaryButton } from '../common/BrandButton';
 
 function PackageForm({
   packageForm,
@@ -186,12 +187,12 @@ function PackageForm({
             </div>
 
             <div className="modal-footer">
-              <button type="button" className="secondary-btn" onClick={onClose}>
+              <OutlineButton type="button" onClick={onClose}>
                 Cancel
-              </button>
-              <button type="submit" className="primary-btn">
+              </OutlineButton>
+              <PrimaryButton type="submit">
                 {editingPackageId ? 'Update Package' : 'Add Package'}
-              </button>
+              </PrimaryButton>
             </div>
           </form>
         </div>

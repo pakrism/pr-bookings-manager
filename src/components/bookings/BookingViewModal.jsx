@@ -1,5 +1,10 @@
 import { useEffect, useState } from 'react';
-import { formatCurrency, getStatusBadgeClass } from '../../utils/helpers';
+import { formatCurrency } from '../../utils/helpers';
+import BookingStatusChip from '../common/BookingStatusChip';
+import {
+  PrimaryButton,
+  OutlineButton,
+} from '../common/BrandButton';
 import {
   getBookingProfit,
   hasBookingFinancials,
@@ -154,9 +159,7 @@ function BookingViewModal({
               </div>
               <div>
                 <strong>Status:</strong>{' '}
-                <span className={getStatusBadgeClass(resolvedStatus)}>
-                  {resolvedStatus}
-                </span>
+                <BookingStatusChip status={resolvedStatus} />
               </div>
             </div>
 
@@ -218,28 +221,26 @@ function BookingViewModal({
           )}
 
           <div className="modal-footer">
-            <button
+            <OutlineButton
               type="button"
-              className="secondary-btn"
               onClick={() => generateInvoicePDF(booking)}
             >
               Download invoice
-            </button>
+            </OutlineButton>
             {canEdit && onEdit && (
-              <button
+              <PrimaryButton
                 type="button"
-                className="secondary-btn"
                 onClick={() => {
                   onClose();
                   onEdit(booking);
                 }}
               >
                 Edit
-              </button>
+              </PrimaryButton>
             )}
-            <button type="button" className="secondary-btn" onClick={onClose}>
+            <OutlineButton type="button" onClick={onClose}>
               Close
-            </button>
+            </OutlineButton>
           </div>
         </div>
       </div>

@@ -6,7 +6,13 @@ import {
   groupTypes,
   transportOptions,
 } from '../../data/constants';
-import { formatCurrency, getStatusBadgeClass } from '../../utils/helpers';
+import { formatCurrency } from '../../utils/helpers';
+import BookingStatusChip from '../common/BookingStatusChip';
+import {
+  PrimaryButton,
+  SecondaryButton,
+  OutlineButton,
+} from '../common/BrandButton';
 import { resolveFormBookingStatus } from '../../utils/bookingStatus';
 import { computeRemainingAmount, getTotalPaid } from '../../utils/payments';
 import ProfitShareBreakdown from '../profit/ProfitShareBreakdown';
@@ -366,13 +372,13 @@ function BookingForm({
                         {formatCurrency(suggestedPackagePrice || 0)}
                       </span>
                       {!readOnly && suggestedPackagePrice > 0 && (
-                        <button
+                        <SecondaryButton
                           type="button"
-                          className="secondary-btn small-btn"
+                          size="small"
                           onClick={onApplySuggestedPrice}
                         >
                           Apply
-                        </button>
+                        </SecondaryButton>
                       )}
                     </div>
                   </div>
@@ -382,13 +388,13 @@ function BookingForm({
                   <div className="payment-ledger-header">
                     <div className="form-section-title">Payments</div>
                     {!readOnly && (
-                      <button
+                      <SecondaryButton
                         type="button"
-                        className="secondary-btn small-btn"
+                        size="small"
                         onClick={onAddPayment}
                       >
                         + Add payment
-                      </button>
+                      </SecondaryButton>
                     )}
                   </div>
 
@@ -422,13 +428,14 @@ function BookingForm({
                         }
                       />
                       {!readOnly && payments.length > 1 && (
-                        <button
+                        <OutlineButton
                           type="button"
-                          className="secondary-btn small-btn danger-text"
+                          size="small"
+                          color="error"
                           onClick={() => onRemovePayment(index)}
                         >
                           Remove
-                        </button>
+                        </OutlineButton>
                       )}
                     </div>
                   ))}
@@ -489,9 +496,7 @@ function BookingForm({
                     <div className="form-field">
                       <label>Status (auto from dates)</label>
                       <div className="status-preview">
-                        <span className={getStatusBadgeClass(autoStatus)}>
-                          {autoStatus}
-                        </span>
+                        <BookingStatusChip status={autoStatus} />
                       </div>
                     </div>
 
@@ -517,18 +522,16 @@ function BookingForm({
             </fieldset>
 
             <div className="modal-footer">
-              <button
+              <OutlineButton
                 type="button"
-                className="secondary-btn"
                 onClick={onClose}
                 disabled={isSubmitting}
               >
                 Cancel
-              </button>
+              </OutlineButton>
               {!readOnly && (
-                <button
+                <PrimaryButton
                   type="submit"
-                  className={`primary-btn ${isSubmitting ? 'btn-loading' : ''}`}
                   disabled={isSubmitting}
                 >
                   {isSubmitting
@@ -538,7 +541,7 @@ function BookingForm({
                     : editingBookingId
                       ? 'Update Booking'
                       : 'Create Booking'}
-                </button>
+                </PrimaryButton>
               )}
             </div>
           </form>

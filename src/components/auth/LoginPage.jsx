@@ -1,4 +1,7 @@
 import { useState } from 'react';
+import { Box, Typography } from '@mui/material';
+import Logo from '../logo/Logo';
+import { PrimaryButton } from '../common/BrandButton';
 
 function LoginPage({ onLogin, errorMessage, loading }) {
   const [form, setForm] = useState({
@@ -22,13 +25,12 @@ function LoginPage({ onLogin, errorMessage, loading }) {
   return (
     <div className="auth-shell">
       <div className="auth-card">
-        <div className="auth-brand">
-          <div className="auth-brand-mark" />
-          <div>
-            <h1>Pakrism</h1>
-            <p>Booking Manager</p>
-          </div>
-        </div>
+        <Box sx={{ mb: 3 }}>
+          <Logo />
+          <Typography variant="body2" sx={{ color: '#637381', mt: 1 }}>
+            Booking Manager
+          </Typography>
+        </Box>
 
         <div className="auth-header">
           <h2>Sign in</h2>
@@ -64,9 +66,14 @@ function LoginPage({ onLogin, errorMessage, loading }) {
 
           {errorMessage && <div className="auth-error">{errorMessage}</div>}
 
-          <button className="auth-submit-btn" type="submit" disabled={loading}>
+          <PrimaryButton
+            type="submit"
+            disabled={loading}
+            fullWidth
+            sx={{ mt: 1 }}
+          >
             {loading ? 'Signing in...' : 'Sign in'}
-          </button>
+          </PrimaryButton>
         </form>
       </div>
     </div>

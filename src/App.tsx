@@ -1,7 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import './App.css';
 
-import Sidebar from './components/layout/Sidebar';
+import DashboardLayout from './layouts/DashboardLayout';
+import {
+  PrimaryButton,
+  SecondaryButton,
+  OutlineButton,
+} from './components/common/BrandButton';
 import PackageForm from './components/packages/PackageForm';
 import PackageList from './components/packages/PackageList';
 import BookingForm from './components/bookings/BookingForm';
@@ -223,7 +228,7 @@ function App() {
 
     if (screen === 'revenue') {
       return {
-        title: 'Revenue',
+        title: 'Finance',
         subtitle: 'Departure-month attribution and partner shares',
       };
     }
@@ -829,9 +834,9 @@ function App() {
         <div className="page-actions">
           <div className="page-section-title">Overview</div>
           {isAdmin && (
-            <button className="header-action-btn" onClick={openNewBookingModal}>
+            <SecondaryButton onClick={openNewBookingModal}>
               + New Booking
-            </button>
+            </SecondaryButton>
           )}
         </div>
 
@@ -998,188 +1003,151 @@ function App() {
   }
 
   return (
-    <div className="app-shell">
-      <Sidebar
-        screen={screen}
-        setScreen={setScreen}
-        onResetLocalData={handleResetLocalData}
-        bookingCount={bookings.length}
-        packageCount={packages.length}
-        currentUserName={userProfile.fullName}
-        currentUserEmail={userProfile.email}
-        userRole={userProfile.role}
-        onSignOut={handleSignOut}
-      />
+    <DashboardLayout
+      screen={screen}
+      setScreen={setScreen}
+      pageTitle={pageMeta.title}
+      pageSubtitle={pageMeta.subtitle}
+      currentUserName={userProfile.fullName}
+      currentUserEmail={userProfile.email}
+      userRole={userProfile.role}
+      bookingCount={bookings.length}
+      packageCount={packages.length}
+      onSignOut={handleSignOut}
+    >
+      {screen === 'dashboard' && renderDashboard()}
 
-      <div className="app-main">
-        <header className="page-topbar">
-          <div className="page-topbar-left">
-            <h1 className="page-topbar-title">{pageMeta.title}</h1>
-            <p className="page-topbar-subtitle">{pageMeta.subtitle}</p>
+      {screen === 'packages' && (
+        <>
+          <div className="page-actions">
+            <div className="page-section-title">All packages</div>
+            {isAdmin && (
+              <PrimaryButton onClick={openNewPackageModal}>
+                + Add Package
+              </PrimaryButton>
+            )}
           </div>
 
-          <div className="page-topbar-right">
-            <div className="live-indicator">
-              <span className="live-dot" />
-              <span>Live</span>
-            </div>
-
-            <div className="topbar-user-chip">
-              <span className="topbar-avatar">
-                {userProfile.fullName?.trim()?.[0]?.toUpperCase() || 'U'}
-              </span>
-              <span>{userProfile.fullName || 'User'}</span>
-            </div>
-          </div>
-        </header>
-
-        <div className="page-body">
-          {screen === 'dashboard' && renderDashboard()}
-
-          {screen === 'packages' && (
-            <>
-              <div className="page-actions">
-                <div className="page-section-title">All packages</div>
-                {isAdmin && (
-                  <button
-                    className="header-action-btn"
-                    onClick={openNewPackageModal}
-                  >
-                    + Add Package
-                  </button>
-                )}
-              </div>
-
-              <PackageList
-                packages={packages}
-                onEdit={handleEditPackage}
-                onDelete={handleDeletePackage}
-                canEdit={isAdmin}
-              />
-            </>
-          )}
-
-          {screen === 'bookings' && (
-            <>
-              <div className="page-actions bookings-page-actions">
-                <div className="page-section-title">All bookings</div>
-                <div className="page-actions-buttons">
-                  <button
-                    type="button"
-                    className="secondary-btn"
-                    onClick={() => setShowRemindersModal(true)}
-                  >
-                    Departure reminders
-                  </button>
-                  <button
-                    type="button"
-                    className="secondary-btn"
-                    onClick={handleExportBookingsCsv}
-                  >
-                    Export CSV
-                  </button>
-                  {isAdmin && (
-                    <button
-                      className="header-action-btn"
-                      onClick={openNewBookingModal}
-                    >
-                      + New Booking
-                    </button>
-                  )}
-                </div>
-              </div>
-
-              <BookingList
-                bookings={bookings}
-                searchTerm={bookingSearch}
-                statusFilter={bookingStatusFilter}
-                monthFilter={bookingMonthFilter}
-                sortKey={bookingSort}
-                onSearchChange={setBookingSearch}
-                onStatusChange={setBookingStatusFilter}
-                onMonthChange={setBookingMonthFilter}
-                onSortChange={setBookingSort}
-                onView={(booking) => setViewBooking(booking)}
-                onEdit={handleEditBooking}
-                onDelete={handleDeleteBooking}
-                canEdit={isAdmin}
-              />
-            </>
-          )}
-
-          {screen === 'revenue' && (
-            <RevenuePage
-              bookings={bookings}
-              onViewBooking={(booking) => setViewBooking(booking)}
-              onExportToast={() => showToast('Revenue CSV downloaded.')}
-              canEdit={isAdmin}
-              onToggleProfitSharePaid={handleToggleProfitSharePaid}
-            />
-          )}
-
-          {screen === 'schedule' && (
-            <>
-              <div className="page-actions">
-                <div className="page-section-title">Trip schedule overview</div>
-              </div>
-
-              <SchedulePage
-                bookings={bookings}
-                onOpenBooking={(booking) => setViewBooking(booking)}
-              />
-            </>
-          )}
-        </div>
-
-        {isPackageModalOpen && (
-          <PackageForm
-            packageForm={packageForm}
-            editingPackageId={editingPackageId}
-            onChange={handlePackageInputChange}
-            onSubmit={handleSavePackage}
-            onClose={closePackageModal}
-          />
-        )}
-
-        {isBookingModalOpen && (
-          <BookingForm
-            bookingForm={bookingForm}
-            editingBookingId={editingBookingId}
+          <PackageList
             packages={packages}
-            onChange={handleBookingInputChange}
-            onPackageChange={handleBookingPackageChange}
-            onPaymentChange={handlePaymentChange}
-            onAddPayment={handleAddPayment}
-            onRemovePayment={handleRemovePayment}
-            onApplySuggestedPrice={handleApplySuggestedPrice}
-            suggestedPackagePrice={suggestedPackagePrice}
-            onSubmit={handleSaveBooking}
-            onClose={closeBookingModal}
-            isSubmitting={isSavingBooking}
-            readOnly={!isAdmin}
-          />
-        )}
-
-        {viewBooking && (
-          <BookingViewModal
-            booking={viewBooking}
-            onClose={() => setViewBooking(null)}
+            onEdit={handleEditPackage}
+            onDelete={handleDeletePackage}
             canEdit={isAdmin}
-            onEdit={handleEditBooking}
-            onToggleProfitSharePaid={handleToggleProfitSharePaid}
           />
-        )}
+        </>
+      )}
 
-        {showRemindersModal && (
-          <DepartureRemindersModal
+      {screen === 'bookings' && (
+        <>
+          <div className="page-actions bookings-page-actions">
+            <div className="page-section-title">All bookings</div>
+            <div className="page-actions-buttons">
+              <OutlineButton
+                type="button"
+                onClick={() => setShowRemindersModal(true)}
+              >
+                Departure reminders
+              </OutlineButton>
+              <OutlineButton type="button" onClick={handleExportBookingsCsv}>
+                Export CSV
+              </OutlineButton>
+              {isAdmin && (
+                <SecondaryButton onClick={openNewBookingModal}>
+                  + New Booking
+                </SecondaryButton>
+              )}
+            </div>
+          </div>
+
+          <BookingList
             bookings={bookings}
-            onClose={() => setShowRemindersModal(false)}
+            searchTerm={bookingSearch}
+            statusFilter={bookingStatusFilter}
+            monthFilter={bookingMonthFilter}
+            sortKey={bookingSort}
+            onSearchChange={setBookingSearch}
+            onStatusChange={setBookingStatusFilter}
+            onMonthChange={setBookingMonthFilter}
+            onSortChange={setBookingSort}
+            onView={(booking) => setViewBooking(booking)}
+            onEdit={handleEditBooking}
+            onDelete={handleDeleteBooking}
+            canEdit={isAdmin}
           />
-        )}
+        </>
+      )}
 
-        <Toast toast={toast} />
-      </div>
-    </div>
+      {screen === 'revenue' && (
+        <RevenuePage
+          bookings={bookings}
+          onViewBooking={(booking) => setViewBooking(booking)}
+          onExportToast={() => showToast('Revenue CSV downloaded.')}
+          canEdit={isAdmin}
+          onToggleProfitSharePaid={handleToggleProfitSharePaid}
+        />
+      )}
+
+      {screen === 'schedule' && (
+        <>
+          <div className="page-actions">
+            <div className="page-section-title">Trip schedule overview</div>
+          </div>
+
+          <SchedulePage
+            bookings={bookings}
+            onOpenBooking={(booking) => setViewBooking(booking)}
+          />
+        </>
+      )}
+
+      {isPackageModalOpen && (
+        <PackageForm
+          packageForm={packageForm}
+          editingPackageId={editingPackageId}
+          onChange={handlePackageInputChange}
+          onSubmit={handleSavePackage}
+          onClose={closePackageModal}
+        />
+      )}
+
+      {isBookingModalOpen && (
+        <BookingForm
+          bookingForm={bookingForm}
+          editingBookingId={editingBookingId}
+          packages={packages}
+          onChange={handleBookingInputChange}
+          onPackageChange={handleBookingPackageChange}
+          onPaymentChange={handlePaymentChange}
+          onAddPayment={handleAddPayment}
+          onRemovePayment={handleRemovePayment}
+          onApplySuggestedPrice={handleApplySuggestedPrice}
+          suggestedPackagePrice={suggestedPackagePrice}
+          onSubmit={handleSaveBooking}
+          onClose={closeBookingModal}
+          isSubmitting={isSavingBooking}
+          readOnly={!isAdmin}
+        />
+      )}
+
+      {viewBooking && (
+        <BookingViewModal
+          booking={viewBooking}
+          onClose={() => setViewBooking(null)}
+          canEdit={isAdmin}
+          onEdit={handleEditBooking}
+          onToggleProfitSharePaid={handleToggleProfitSharePaid}
+        />
+      )}
+
+      {showRemindersModal && (
+        <DepartureRemindersModal
+          bookings={bookings}
+          onClose={() => setShowRemindersModal(false)}
+        />
+      )}
+
+      <Toast toast={toast} />
+    </DashboardLayout>
   );
 }
 

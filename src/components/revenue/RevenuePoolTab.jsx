@@ -1,5 +1,6 @@
 import { Fragment, useMemo, useState } from 'react';
-import { formatCurrency, getStatusBadgeClass } from '../../utils/helpers';
+import { formatCurrency } from '../../utils/helpers';
+import BookingStatusChip from '../common/BookingStatusChip';
 import {
   getRecipientConfigsForPool,
   getPoolSplitLabel,
@@ -258,13 +259,9 @@ function RevenuePoolTab({
                           )}
                         </td>
                         <td>
-                          <span
-                            className={getStatusBadgeClass(
-                              resolveBookingStatus(booking)
-                            )}
-                          >
-                            {resolveBookingStatus(booking)}
-                          </span>
+                          <BookingStatusChip
+                            status={resolveBookingStatus(booking)}
+                          />
                         </td>
                       </tr>
                       {isExpanded && (

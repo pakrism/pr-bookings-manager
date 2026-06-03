@@ -2,6 +2,7 @@ import { useEffect, useMemo } from 'react';
 import { DEPARTURE_REMINDER_DAYS } from '../../data/constants';
 import { resolveBookingStatus } from '../../utils/bookingStatus';
 import { formatDateForDisplay, getWhatsappLink } from '../../utils/helpers';
+import { OutlineButton } from '../common/BrandButton';
 
 function DepartureRemindersModal({ bookings, onClose }) {
   useEffect(() => {
@@ -80,13 +81,9 @@ function DepartureRemindersModal({ bookings, onClose }) {
           ) : (
             <>
               <div className="reminder-actions">
-                <button
-                  type="button"
-                  className="secondary-btn"
-                  onClick={handleCopyNumbers}
-                >
+                <OutlineButton type="button" onClick={handleCopyNumbers}>
                   Copy all WhatsApp numbers
-                </button>
+                </OutlineButton>
               </div>
 
               <div className="reminder-list">
@@ -126,9 +123,9 @@ function DepartureRemindersModal({ bookings, onClose }) {
           )}
 
           <div className="modal-footer">
-            <button type="button" className="secondary-btn" onClick={onClose}>
+            <OutlineButton type="button" onClick={onClose}>
               Close
-            </button>
+            </OutlineButton>
           </div>
         </div>
       </div>

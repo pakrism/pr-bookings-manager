@@ -1,5 +1,7 @@
 import { useMemo, useState } from 'react';
-import { getStatusBadgeClass, getWhatsappLink } from '../../utils/helpers';
+import { getWhatsappLink } from '../../utils/helpers';
+import BookingStatusChip from '../common/BookingStatusChip';
+import { OutlineButton } from '../common/BrandButton';
 import { resolveBookingStatus } from '../../utils/bookingStatus';
 import { normalizeBookingTourType } from '../../utils/tourType';
 import { getBookingBalance } from '../../utils/bookingBalance';
@@ -36,13 +38,7 @@ function ScheduleBatchCard({ batch, onOpenBooking }) {
               {batch.totalBookings} booking
               {batch.totalBookings !== 1 ? 's' : ''}
             </span>
-            <span
-              className={`batch-status ${batchStatus
-                .toLowerCase()
-                .replace('-', '')}`}
-            >
-              {batchStatus}
-            </span>
+            <BookingStatusChip status={batchStatus} />
           </div>
 
           <p className="schedule-batch-subtitle">
@@ -51,21 +47,21 @@ function ScheduleBatchCard({ batch, onOpenBooking }) {
         </div>
 
         <div className="schedule-header-actions">
-          <button
+          <OutlineButton
             type="button"
-            className="schedule-pdf-btn"
+            size="small"
             onClick={() => downloadScheduleBatchPdf(batch)}
           >
             Download PDF
-          </button>
+          </OutlineButton>
 
-          <button
+          <OutlineButton
             type="button"
-            className="schedule-toggle-btn"
+            size="small"
             onClick={() => setExpanded((prev) => !prev)}
           >
             {expanded ? 'Hide' : 'Show'}
-          </button>
+          </OutlineButton>
         </div>
       </div>
 
@@ -148,9 +144,7 @@ function ScheduleBatchCard({ batch, onOpenBooking }) {
                       </span>
                     </td>
                     <td>
-                      <span className={getStatusBadgeClass(resolvedStatus)}>
-                        {resolvedStatus}
-                      </span>
+                      <BookingStatusChip status={resolvedStatus} />
                     </td>
                     <td onClick={(e) => e.stopPropagation()}>
                       {whatsappLink ? (
@@ -302,9 +296,9 @@ function SchedulePage({ bookings, onOpenBooking }) {
           ))}
         </select>
 
-        <button
+        <OutlineButton
           type="button"
-          className="schedule-pdf-btn"
+          size="small"
           disabled={!upcomingBatchesForExport.length}
           onClick={() =>
             downloadAllScheduleBatchesPdf(
@@ -314,16 +308,16 @@ function SchedulePage({ bookings, onOpenBooking }) {
           }
         >
           Download all upcoming PDF
-        </button>
+        </OutlineButton>
 
-        <button
+        <OutlineButton
           type="button"
-          className="schedule-pdf-btn"
+          size="small"
           disabled={!upcomingBatchesForExport.length}
           onClick={() => downloadScheduleIcal(upcomingBatchesForExport)}
         >
           Export iCal
-        </button>
+        </OutlineButton>
       </div>
 
       {!groupedSchedules.length ? (

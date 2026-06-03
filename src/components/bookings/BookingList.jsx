@@ -2,9 +2,9 @@ import { useState } from 'react';
 import {
   formatCurrency,
   formatDateForDisplay,
-  getStatusBadgeClass,
   totalPersons,
 } from '../../utils/helpers';
+import BookingStatusChip from '../common/BookingStatusChip';
 import { getBookingProfit } from '../../utils/bookingFinancials';
 import { resolveBookingStatus } from '../../utils/bookingStatus';
 import { normalizeBookingTourType } from '../../utils/tourType';
@@ -70,9 +70,7 @@ function BookingRowContent({
           </td>
         )}
         <td>
-          <span className={getStatusBadgeClass(resolvedStatus)}>
-            {resolvedStatus}
-          </span>
+          <BookingStatusChip status={resolvedStatus} />
         </td>
         <td>{formatCurrency(booking.packagePrice)}</td>
         <td>
@@ -119,9 +117,7 @@ function BookingRowContent({
           <div className="guest-name">{booking.guestName}</div>
           <div className="table-subtext">{booking.bookingRef || '-'}</div>
         </div>
-        <span className={getStatusBadgeClass(resolvedStatus)}>
-          {resolvedStatus}
-        </span>
+        <BookingStatusChip status={resolvedStatus} />
       </div>
 
       <div className="booking-card-grid">

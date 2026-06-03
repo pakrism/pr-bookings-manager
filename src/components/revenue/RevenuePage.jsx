@@ -8,6 +8,7 @@ import { downloadRevenueCsv } from '../../utils/exportRevenueCsv';
 import { PERIOD_PRESETS, REVENUE_TABS } from './revenueConstants';
 import RevenueOverviewTab from './RevenueOverviewTab';
 import RevenuePoolTab from './RevenuePoolTab';
+import { OutlineButton } from '../common/BrandButton';
 
 function RevenuePage({
   bookings,
@@ -79,9 +80,9 @@ function RevenuePage({
           </>
         )}
 
-        <button type="button" className="secondary-btn" onClick={handleExportCsv}>
+        <OutlineButton type="button" onClick={handleExportCsv}>
           Export CSV
-        </button>
+        </OutlineButton>
       </div>
 
       <nav className="revenue-subnav" aria-label="Revenue sections">

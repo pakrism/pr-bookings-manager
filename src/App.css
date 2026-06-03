@@ -3,30 +3,30 @@
 }
 
 :root {
-  --bg: #f4f7fb;
+  --bg: #F6FBF3;
   --panel: #ffffff;
-  --panel-soft: #f8fbff;
-  --border: #dbe4ee;
-  --text: #172033;
-  --muted: #6b7a90;
-  --sidebar: #09162b;
-  --sidebar-soft: #0f1f3a;
-  --sidebar-border: rgba(255, 255, 255, 0.08);
-  --primary: #13998d;
-  --primary-dark: #0d7f75;
-  --primary-soft: rgba(19, 153, 141, 0.12);
-  --danger: #dc2626;
-  --danger-soft: #fee2e2;
-  --warning: #ea580c;
-  --warning-soft: #fff7ed;
+  --panel-soft: #F6FBF3;
+  --border: #E8F5E0;
+  --text: #101828;
+  --muted: #637381;
+  --sidebar: #ffffff;
+  --sidebar-soft: #F6FBF3;
+  --sidebar-border: #E8F5E0;
+  --primary: #58C71B;
+  --primary-dark: #409F11;
+  --primary-soft: rgba(88, 199, 27, 0.12);
+  --danger: #B71D18;
+  --danger-soft: rgba(255, 86, 48, 0.12);
+  --warning: #FFAD32;
+  --warning-soft: rgba(255, 206, 109, 0.25);
   --blue-soft: #e8f1ff;
   --blue-text: #2563eb;
-  --success-soft: #ecfdf5;
-  --success-text: #059669;
+  --success-soft: rgba(88, 199, 27, 0.12);
+  --success-text: #409F11;
   --purple-soft: #f3e8ff;
   --purple-text: #7c3aed;
-  --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.04);
-  --shadow-md: 0 10px 30px rgba(15, 23, 42, 0.06);
+  --shadow-sm: 0px 2px 8px rgba(88, 199, 27, 0.08);
+  --shadow-md: 0px 4px 20px rgba(88, 199, 27, 0.08);
 }
 
 html,
@@ -1167,6 +1167,7 @@ img {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
+  align-items: center;
 }
 
 .bookings-page-actions {
