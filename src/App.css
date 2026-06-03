@@ -1878,6 +1878,148 @@ img {
   font-size: 0.85rem;
 }
 
+.revenue-subnav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 20px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.revenue-subnav-btn {
+  border: 1px solid #d1d5db;
+  background: #fff;
+  color: #374151;
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.revenue-subnav-btn:hover {
+  background: #f9fafb;
+  border-color: #9ca3af;
+}
+
+.revenue-subnav-btn.active {
+  background: #111827;
+  border-color: #111827;
+  color: #fff;
+}
+
+.revenue-tab-content {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.revenue-pool-entry-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+@media (max-width: 760px) {
+  .revenue-pool-entry-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.revenue-pool-entry-card {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 14px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.revenue-pool-entry-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.revenue-pool-entry-title {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 600;
+  color: #111827;
+}
+
+.revenue-pool-entry-badge {
+  font-size: 0.75rem;
+  color: #6b7280;
+  background: #f3f4f6;
+  padding: 4px 8px;
+  border-radius: 6px;
+}
+
+.revenue-pool-entry-amount {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #111827;
+}
+
+.revenue-pool-entry-split {
+  margin: 0;
+  font-size: 0.82rem;
+  color: #6b7280;
+}
+
+.revenue-pool-entry-btn {
+  margin-top: 8px;
+  align-self: flex-start;
+}
+
+.revenue-pool-header {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 16px;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 14px;
+}
+
+.revenue-pool-header-title {
+  margin: 0 0 4px;
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+.revenue-pool-header-subtitle {
+  margin: 0;
+  font-size: 0.88rem;
+  color: #6b7280;
+}
+
+.revenue-pool-header-total {
+  text-align: right;
+}
+
+.revenue-pool-header-total-label {
+  display: block;
+  font-size: 0.78rem;
+  color: #6b7280;
+  margin-bottom: 4px;
+}
+
+.revenue-pool-header-total strong {
+  font-size: 1.35rem;
+}
+
+.revenue-pool-recipient-grid {
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+}
+
 @media (max-width: 760px) {
   .bookings-desktop-only {
     display: none;
