@@ -14,6 +14,12 @@ import { db } from './firebase';
 const packagesRef = collection(db, 'packages');
 const bookingsRef = collection(db, 'bookings');
 
+function omitUndefinedFields(data) {
+  return Object.fromEntries(
+    Object.entries(data).filter(([, value]) => value !== undefined)
+  );
+}
+
 function logSnapshotError(label, error) {
   console.error(`Firestore ${label} subscription error:`, error);
 }
@@ -47,7 +53,7 @@ export async function updatePackage(id, data) {
   const { createdAt, ...rest } = data;
 
   await updateDoc(ref, {
-    ...rest,
+    ...omitUndefinedFields(rest),
     updatedAt: serverTimestamp(),
   });
 }
@@ -86,7 +92,7 @@ export async function updateBooking(id, data) {
   const { createdAt, ...rest } = data;
 
   await updateDoc(ref, {
-    ...rest,
+    ...omitUndefinedFields(rest),
     updatedAt: serverTimestamp(),
   });
 }

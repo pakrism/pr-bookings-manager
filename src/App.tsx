@@ -672,7 +672,9 @@ function App() {
         const updatedBooking = {
           bookingRef: existingBooking?.bookingRef || '',
           ...bookingPayload,
-          profitSharePaid: existingBooking?.profitSharePaid,
+          profitSharePaid: normalizeProfitSharePaid(
+            existingBooking?.profitSharePaid
+          ),
           createdByUid: existingBooking?.createdByUid || authUser.uid,
           createdByName: existingBooking?.createdByName || userProfile.fullName,
           createdAt: existingBooking?.createdAt || null,
