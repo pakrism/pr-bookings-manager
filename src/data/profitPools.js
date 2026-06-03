@@ -42,13 +42,3 @@ export function getAllRecipientConfigs() {
   }
   return list;
 }
-
-export function getRecipientConfigsForPool(poolId) {
-  return getAllRecipientConfigs().filter((c) => c.poolId === poolId);
-}
-
-export function getPoolSplitLabel(poolId) {
-  const pool = PROFIT_POOLS[poolId];
-  if (!pool) return '';
-  return pool.recipients.map((r) => `${r.label} ${r.percent}%`).join(' · ');
-}

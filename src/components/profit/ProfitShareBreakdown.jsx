@@ -1,7 +1,7 @@
 import { formatCurrency } from '../../utils/helpers';
 import { getBookingProfit } from '../../utils/bookingFinancials';
 import { getProfitDistribution, getProfitPoolAmount } from '../../utils/partnerProfit';
-import { PROFIT_POOLS, POOL_IDS } from '../../data/profitPools';
+import { PROFIT_POOLS } from '../../data/profitPools';
 
 function PoolSection({
   poolId,
@@ -62,7 +62,6 @@ function ProfitShareBreakdown({
   canEdit = false,
   onTogglePaid,
   compact = false,
-  poolId = null,
 }) {
   const profit = getBookingProfit(booking);
   const distribution = getProfitDistribution(booking);
@@ -73,20 +72,22 @@ function ProfitShareBreakdown({
     );
   }
 
-  const poolsToShow = poolId && POOL_IDS.includes(poolId) ? [poolId] : POOL_IDS;
-
   return (
     <div className={`profit-share-breakdown${compact ? ' profit-share-breakdown-compact' : ''}`}>
-      {poolsToShow.map((id) => (
-        <PoolSection
-          key={id}
-          poolId={id}
-          booking={booking}
-          canEdit={canEdit}
-          onTogglePaid={onTogglePaid}
-          compact={compact}
-        />
-      ))}
+      <PoolSection
+        poolId="zohaib"
+        booking={booking}
+        canEdit={canEdit}
+        onTogglePaid={onTogglePaid}
+        compact={compact}
+      />
+      <PoolSection
+        poolId="pervaiz"
+        booking={booking}
+        canEdit={canEdit}
+        onTogglePaid={onTogglePaid}
+        compact={compact}
+      />
     </div>
   );
 }

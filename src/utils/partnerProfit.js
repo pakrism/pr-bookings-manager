@@ -140,30 +140,4 @@ export function sumPartnerShares(bookings, partnerName) {
   }, 0);
 }
 
-export function filterDistributionByPool(distribution, poolId) {
-  if (!poolId) return distribution;
-  return distribution.filter((row) => row.poolId === poolId);
-}
-
-export function getRecipientTotalsForPool(recipientTotals, poolId) {
-  const filtered = {};
-  for (const [key, value] of Object.entries(recipientTotals || {})) {
-    if (value.poolId === poolId) {
-      filtered[key] = value;
-    }
-  }
-  return filtered;
-}
-
-export function getPoolPaidSummary(recipientTotals, poolId) {
-  const poolEntries = Object.values(getRecipientTotalsForPool(recipientTotals, poolId));
-  return poolEntries.reduce(
-    (acc, entry) => ({
-      paidTotal: acc.paidTotal + entry.paidTotal,
-      unpaidTotal: acc.unpaidTotal + entry.unpaidTotal,
-    }),
-    { paidTotal: 0, unpaidTotal: 0 }
-  );
-}
-
 export { getAllRecipientConfigs, getShareKey };
