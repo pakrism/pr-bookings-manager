@@ -3,8 +3,7 @@ import {
   signOut,
   onAuthStateChanged,
 } from 'firebase/auth';
-import { doc, getDoc } from 'firebase/firestore';
-import { auth, db } from './firebase';
+import { auth } from './firebase';
 
 export async function loginWithEmail(email, password) {
   const result = await signInWithEmailAndPassword(auth, email, password);
@@ -19,19 +18,16 @@ export function watchAuth(callback) {
   return onAuthStateChanged(auth, callback);
 }
 
-export async function getApprovedUserProfile(uid) {
-  const ref = doc(db, 'users', uid);
-  const snap = await getDoc(ref);
-
-  if (!snap.exists()) {
-    return null;
-  }
-
-  const data = snap.data();
-
+/** Session profile from Firebase Auth only (no Firestore users doc). */
+export function buildSessionProfile(firebaseUser) {
   return {
-    uid,
-    ...data,
-    role: data.role === 'viewer' ? 'viewer' : 'admin',
+    uid: firebaseUser.uid,
+    email: firebaseUser.email || '',
+    fullName:
+      firebaseUser.displayName ||
+      firebaseUser.email?.split('@')[0] ||
+      'User',
+    role: 'admin',
+    isActive: true,
   };
 }

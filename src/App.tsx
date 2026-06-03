@@ -47,7 +47,7 @@ import {
 } from './utils/partnerProfit';
 
 import {
-  getApprovedUserProfile,
+  buildSessionProfile,
   loginWithEmail,
   logoutUser,
   watchAuth,
@@ -127,28 +127,9 @@ function App() {
         return;
       }
 
-      try {
-        const profile = await getApprovedUserProfile(firebaseUser.uid);
-
-        if (!profile || profile.isActive !== true) {
-          await logoutUser();
-          setAuthError('Access not approved.');
-          setAuthUser(null);
-          setUserProfile(null);
-          setAuthLoading(false);
-          return;
-        }
-
-        setAuthUser(firebaseUser);
-        setUserProfile(profile);
-      } catch (error) {
-        console.error('Profile verification error:', error);
-        setAuthError('Failed to verify access.');
-        setAuthUser(null);
-        setUserProfile(null);
-      } finally {
-        setAuthLoading(false);
-      }
+      setAuthUser(firebaseUser);
+      setUserProfile(buildSessionProfile(firebaseUser));
+      setAuthLoading(false);
     });
 
     return () => unsubscribe();
