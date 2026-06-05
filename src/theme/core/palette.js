@@ -2,6 +2,7 @@ import { themeConfig } from '../theme-config';
 
 export function palette() {
   const { palette: p } = themeConfig;
+  const { dark, darkHover, darkContrastText } = p.action;
 
   return {
     mode: 'light',
@@ -16,6 +17,12 @@ export function palette() {
     text: p.text,
     background: p.background,
     divider: p.divider,
+    inherit: {
+      main: dark,
+      dark: darkHover,
+      light: dark,
+      contrastText: darkContrastText,
+    },
     action: {
       active: p.grey[600],
       hover: 'rgba(145, 158, 171, 0.08)',

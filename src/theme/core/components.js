@@ -1,7 +1,8 @@
 import { alpha } from '@mui/material/styles';
 import { themeConfig } from '../theme-config';
 
-const { palette: p, action } = themeConfig;
+const { palette: p } = themeConfig;
+const customAction = p.action;
 
 export function components() {
   return {
@@ -56,11 +57,11 @@ export function components() {
         {
           props: { variant: 'contained', color: 'inherit' },
           style: {
-            backgroundColor: action.dark,
-            color: action.darkContrastText,
+            backgroundColor: customAction.dark,
+            color: customAction.darkContrastText,
             boxShadow: 'none',
             '&:hover': {
-              backgroundColor: action.darkHover,
+              backgroundColor: customAction.darkHover,
               boxShadow: 'none',
             },
           },
