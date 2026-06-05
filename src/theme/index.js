@@ -14,6 +14,15 @@ export const pakrism = {
   divider: '#E8F5E0',
 };
 
+export const chartColors = [
+  pakrism.green,
+  pakrism.orange,
+  pakrism.darkGreen,
+  pakrism.lightGreen,
+  pakrism.textSecondary,
+  pakrism.softOrange,
+];
+
 export const theme = createTheme({
   palette: {
     mode: 'light',

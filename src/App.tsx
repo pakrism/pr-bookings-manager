@@ -2,15 +2,11 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import './App.css';
 
 import DashboardLayout from './layouts/DashboardLayout';
-import {
-  PrimaryButton,
-  SecondaryButton,
-  OutlineButton,
-} from './components/common/BrandButton';
+import DashboardPage from './pages/DashboardPage';
+import BookingsPage from './pages/BookingsPage';
+import PackagesPage from './pages/PackagesPage';
 import PackageForm from './components/packages/PackageForm';
-import PackageList from './components/packages/PackageList';
 import BookingForm from './components/bookings/BookingForm';
-import BookingList from './components/bookings/BookingList';
 import BookingViewModal from './components/bookings/BookingViewModal';
 import DepartureRemindersModal from './components/bookings/DepartureRemindersModal';
 import SchedulePage from './components/schedule/SchedulePage';
@@ -19,23 +15,18 @@ import LoginPage from './components/auth/LoginPage';
 import { Toast } from './components/common/Toast';
 
 import { emptyBookingForm, emptyPackageForm } from './data/constants';
-import { getNextBookingRef, formatCurrency, totalPersons } from './utils/helpers';
+import { getNextBookingRef, totalPersons } from './utils/helpers';
 import {
   syncFinancials,
-  getBookingProfit,
-  getBookingExpenses,
 } from './utils/bookingFinancials';
 import {
   computeBookingStatus,
-  resolveBookingStatus,
 } from './utils/bookingStatus';
 import { toFormTourType } from './utils/tourType';
-import { getBookingBalance } from './utils/bookingBalance';
 import { getBookingSyncPatch } from './utils/bookingSync';
 import {
   emptyPaymentRow,
   getPaymentsFromBooking,
-  getTotalPaid,
   normalizeFormPayments,
   computeRemainingAmount,
 } from './utils/payments';
@@ -47,7 +38,6 @@ import {
 import { downloadBookingsCsv } from './utils/exportBookingsCsv';
 import { prepareBookingsForList } from './utils/bookingFilters';
 import {
-  getPoolTotals,
   normalizeProfitSharePaid,
 } from './utils/partnerProfit';
 
@@ -101,7 +91,6 @@ function App() {
   const [bookingSearch, setBookingSearch] = useState('');
   const [bookingStatusFilter, setBookingStatusFilter] = useState('All Status');
   const [bookingMonthFilter, setBookingMonthFilter] = useState('All months');
-  const [bookingSort, setBookingSort] = useState('departure_desc');
   const [isSavingBooking, setIsSavingBooking] = useState(false);
   const [toast, setToast] = useState(null);
   const [showRemindersModal, setShowRemindersModal] = useState(false);
@@ -238,61 +227,6 @@ function App() {
       subtitle: `${packages.length} tour packages`,
     };
   }, [screen, bookings.length, packages.length]);
-
-  const totalRevenue = bookings.reduce(
-    (sum, booking) => sum + Number(booking.packagePrice || 0),
-    0
-  );
-
-  const totalProfit = bookings.reduce((sum, booking) => {
-    const profit = getBookingProfit(booking);
-    return sum + (profit ?? 0);
-  }, 0);
-
-  const totalExpenses = bookings.reduce((sum, booking) => {
-    const expenses = getBookingExpenses(booking);
-    return sum + (expenses ?? 0);
-  }, 0);
-
-  const totalAdvance = bookings.reduce(
-    (sum, booking) => sum + getTotalPaid(booking),
-    0
-  );
-
-  const outstandingBalance = bookings.reduce(
-    (sum, booking) => sum + getBookingBalance(booking),
-    0
-  );
-
-  const profitMargin =
-    totalRevenue > 0 ? Math.round((totalProfit / totalRevenue) * 100) : 0;
-
-  const poolTotals = getPoolTotals(bookings);
-
-  const completedTrips = bookings.filter(
-    (booking) => resolveBookingStatus(booking) === 'Completed'
-  ).length;
-
-  const upcomingBookings = bookings.filter((booking) => {
-    const status = resolveBookingStatus(booking);
-    return status === 'Upcoming' || status === 'On-Going';
-  }).length;
-
-  const recentBookings = [...bookings]
-    .sort((a, b) => {
-      const aTime =
-        typeof a.createdAt?.toDate === 'function'
-          ? a.createdAt.toDate().getTime()
-          : new Date(a.createdAt || 0).getTime();
-
-      const bTime =
-        typeof b.createdAt?.toDate === 'function'
-          ? b.createdAt.toDate().getTime()
-          : new Date(b.createdAt || 0).getTime();
-
-      return bTime - aTime;
-    })
-    .slice(0, 5);
 
   async function handleLogin(email, password) {
     setLoginLoading(true);
@@ -818,7 +752,7 @@ function App() {
       searchTerm: bookingSearch,
       statusFilter: bookingStatusFilter,
       monthFilter: bookingMonthFilter,
-      sortKey: bookingSort,
+      sortKey: 'departure_desc',
     });
     downloadBookingsCsv(filtered);
     showToast('Bookings CSV downloaded.');
@@ -826,160 +760,6 @@ function App() {
 
   function handleResetLocalData() {
     showToast('Local reset is no longer used after Firestore sync.', 'error');
-  }
-
-  function renderDashboard() {
-    return (
-      <>
-        <div className="page-actions">
-          <div className="page-section-title">Overview</div>
-          {isAdmin && (
-            <SecondaryButton onClick={openNewBookingModal}>
-              + New Booking
-            </SecondaryButton>
-          )}
-        </div>
-
-        <div className="dashboard-grid">
-          <div className="dashboard-card">
-            <div>
-              <div className="dashboard-card-label">Total Bookings</div>
-              <div className="dashboard-card-value">{bookings.length}</div>
-            </div>
-            <div className="dashboard-card-icon teal">🗓</div>
-          </div>
-
-          <div className="dashboard-card">
-            <div>
-              <div className="dashboard-card-label">Upcoming / Active</div>
-              <div className="dashboard-card-value">{upcomingBookings}</div>
-            </div>
-            <div className="dashboard-card-icon blue">👥</div>
-          </div>
-
-          <div className="dashboard-card">
-            <div>
-              <div className="dashboard-card-label">Packages</div>
-              <div className="dashboard-card-value">{packages.length}</div>
-            </div>
-            <div className="dashboard-card-icon orange">📦</div>
-          </div>
-
-          <div className="dashboard-card">
-            <div>
-              <div className="dashboard-card-label">Total Revenue</div>
-              <div className="dashboard-card-value">
-                {formatCurrency(totalRevenue)}
-              </div>
-            </div>
-            <div className="dashboard-card-icon green">📈</div>
-          </div>
-
-          <div className="dashboard-card">
-            <div>
-              <div className="dashboard-card-label">Total Expenses</div>
-              <div className="dashboard-card-value">
-                {formatCurrency(totalExpenses)}
-              </div>
-            </div>
-            <div className="dashboard-card-icon orange">📉</div>
-          </div>
-
-          <div className="dashboard-card">
-            <div>
-              <div className="dashboard-card-label">Total Profit</div>
-              <div className="dashboard-card-value">
-                {formatCurrency(totalProfit)}
-              </div>
-            </div>
-            <div className="dashboard-card-icon green">💰</div>
-          </div>
-
-          <div className="dashboard-card">
-            <div>
-              <div className="dashboard-card-label">Total Advance</div>
-              <div className="dashboard-card-value">
-                {formatCurrency(totalAdvance)}
-              </div>
-            </div>
-            <div className="dashboard-card-icon blue">💳</div>
-          </div>
-
-          <div className="dashboard-card">
-            <div>
-              <div className="dashboard-card-label">Outstanding Balance</div>
-              <div className="dashboard-card-value">
-                {formatCurrency(outstandingBalance)}
-              </div>
-            </div>
-            <div className="dashboard-card-icon orange">⏳</div>
-          </div>
-
-          <div className="dashboard-card">
-            <div>
-              <div className="dashboard-card-label">Profit Margin</div>
-              <div className="dashboard-card-value">{profitMargin}%</div>
-            </div>
-            <div className="dashboard-card-icon green">📊</div>
-          </div>
-
-          <div className="dashboard-card">
-            <div>
-              <div className="dashboard-card-label">Completed Trips</div>
-              <div className="dashboard-card-value">{completedTrips}</div>
-            </div>
-            <div className="dashboard-card-icon teal">✓</div>
-          </div>
-
-          <div className="dashboard-card">
-            <div>
-              <div className="dashboard-card-label">Zohaib pool (50%)</div>
-              <div className="dashboard-card-value">
-                {formatCurrency(poolTotals.zohaib ?? 0)}
-              </div>
-            </div>
-            <div className="dashboard-card-icon blue">👤</div>
-          </div>
-
-          <div className="dashboard-card">
-            <div>
-              <div className="dashboard-card-label">Pervaiz pool (50%)</div>
-              <div className="dashboard-card-value">
-                {formatCurrency(poolTotals.pervaiz ?? 0)}
-              </div>
-            </div>
-            <div className="dashboard-card-icon blue">👤</div>
-          </div>
-        </div>
-
-        <div className="dashboard-table-card">
-          <div className="dashboard-table-header">
-            <h3 className="dashboard-table-title">Recent Bookings</h3>
-            <button
-              className="dashboard-link"
-              type="button"
-              onClick={() => setScreen('bookings')}
-            >
-              View all →
-            </button>
-          </div>
-
-          <BookingList
-            bookings={recentBookings}
-            searchTerm=""
-            statusFilter="All Status"
-            onSearchChange={() => {}}
-            onStatusChange={() => {}}
-            onView={(booking) => setViewBooking(booking)}
-            onEdit={handleEditBooking}
-            onDelete={handleDeleteBooking}
-            canEdit={isAdmin}
-            variant="compact"
-            showToolbar={false}
-          />
-        </div>
-      </>
-    );
   }
 
   if (authLoading) {
@@ -1015,66 +795,44 @@ function App() {
       packageCount={packages.length}
       onSignOut={handleSignOut}
     >
-      {screen === 'dashboard' && renderDashboard()}
+      {screen === 'dashboard' && (
+        <DashboardPage
+          bookings={bookings}
+          userProfile={userProfile}
+          isAdmin={isAdmin}
+          onNewBooking={openNewBookingModal}
+          onViewBooking={(booking) => setViewBooking(booking)}
+          onViewAllBookings={() => setScreen('bookings')}
+        />
+      )}
 
       {screen === 'packages' && (
-        <>
-          <div className="page-actions">
-            <div className="page-section-title">All packages</div>
-            {isAdmin && (
-              <PrimaryButton onClick={openNewPackageModal}>
-                + Add Package
-              </PrimaryButton>
-            )}
-          </div>
-
-          <PackageList
-            packages={packages}
-            onEdit={handleEditPackage}
-            onDelete={handleDeletePackage}
-            canEdit={isAdmin}
-          />
-        </>
+        <PackagesPage
+          packages={packages}
+          onEdit={handleEditPackage}
+          onDelete={handleDeletePackage}
+          canEdit={isAdmin}
+          onAddPackage={openNewPackageModal}
+        />
       )}
 
       {screen === 'bookings' && (
-        <>
-          <div className="page-actions bookings-page-actions">
-            <div className="page-section-title">All bookings</div>
-            <div className="page-actions-buttons">
-              <OutlineButton
-                type="button"
-                onClick={() => setShowRemindersModal(true)}
-              >
-                Departure reminders
-              </OutlineButton>
-              <OutlineButton type="button" onClick={handleExportBookingsCsv}>
-                Export CSV
-              </OutlineButton>
-              {isAdmin && (
-                <SecondaryButton onClick={openNewBookingModal}>
-                  + New Booking
-                </SecondaryButton>
-              )}
-            </div>
-          </div>
-
-          <BookingList
-            bookings={bookings}
-            searchTerm={bookingSearch}
-            statusFilter={bookingStatusFilter}
-            monthFilter={bookingMonthFilter}
-            sortKey={bookingSort}
-            onSearchChange={setBookingSearch}
-            onStatusChange={setBookingStatusFilter}
-            onMonthChange={setBookingMonthFilter}
-            onSortChange={setBookingSort}
-            onView={(booking) => setViewBooking(booking)}
-            onEdit={handleEditBooking}
-            onDelete={handleDeleteBooking}
-            canEdit={isAdmin}
-          />
-        </>
+        <BookingsPage
+          bookings={bookings}
+          searchTerm={bookingSearch}
+          statusFilter={bookingStatusFilter}
+          monthFilter={bookingMonthFilter}
+          onSearchChange={setBookingSearch}
+          onStatusChange={setBookingStatusFilter}
+          onMonthChange={setBookingMonthFilter}
+          onView={(booking) => setViewBooking(booking)}
+          onEdit={handleEditBooking}
+          onDelete={handleDeleteBooking}
+          canEdit={isAdmin}
+          onNewBooking={openNewBookingModal}
+          onExportCsv={handleExportBookingsCsv}
+          onShowReminders={() => setShowRemindersModal(true)}
+        />
       )}
 
       {screen === 'revenue' && (
