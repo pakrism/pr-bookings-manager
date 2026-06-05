@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { packageTypes } from '../../data/constants';
 import { getPackageImage } from '../../utils/helpers';
-import { OutlineButton, PrimaryButton } from '../common/BrandButton';
+import { DarkButton, OutlineButton } from '../common/BrandButton';
 
 function PackageForm({
   packageForm,
@@ -9,6 +9,7 @@ function PackageForm({
   onChange,
   onSubmit,
   onClose,
+  variant = 'modal',
 }) {
   useEffect(() => {
     function handleEsc(event) {
@@ -27,32 +28,8 @@ function PackageForm({
     }
   }
 
-  return (
-    <div className="modal-backdrop" onClick={handleBackdropClick}>
-      <div className="modal-card package-modal">
-        <div className="modal-header modal-header-row">
-          <div>
-            <h2 className="modal-title">
-              {editingPackageId ? 'Edit Package' : 'New Package'}
-            </h2>
-            <p className="modal-subtitle">
-              Create a reusable tour package template for bookings.
-            </p>
-          </div>
-
-          <button
-            type="button"
-            className="modal-close-btn"
-            onClick={onClose}
-            aria-label="Close modal"
-            title="Close"
-          >
-            ×
-          </button>
-        </div>
-
-        <div className="modal-body">
-          <form onSubmit={onSubmit}>
+  const formContent = (
+    <form onSubmit={onSubmit}>
             <div className="form-section">
               <div className="form-section-title">📦 Package Info</div>
 
@@ -186,16 +163,38 @@ function PackageForm({
               <span>Active (available for booking)</span>
             </div>
 
-            <div className="modal-footer">
+            <div className={variant === 'drawer' ? 'form-page-footer' : 'modal-footer'}>
               <OutlineButton type="button" onClick={onClose}>
                 Cancel
               </OutlineButton>
-              <PrimaryButton type="submit">
-                {editingPackageId ? 'Update Package' : 'Add Package'}
-              </PrimaryButton>
+              <DarkButton type="submit">
+                {editingPackageId ? 'Save changes' : 'Add package'}
+              </DarkButton>
             </div>
           </form>
+  );
+
+  if (variant === 'drawer') {
+    return formContent;
+  }
+
+  return (
+    <div className="modal-backdrop" onClick={handleBackdropClick}>
+      <div className="modal-card package-modal">
+        <div className="modal-header modal-header-row">
+          <div>
+            <h2 className="modal-title">
+              {editingPackageId ? 'Edit Package' : 'New Package'}
+            </h2>
+            <p className="modal-subtitle">
+              Create a reusable tour package template for bookings.
+            </p>
+          </div>
+          <button type="button" className="modal-close-btn" onClick={onClose} aria-label="Close">
+            ×
+          </button>
         </div>
+        <div className="modal-body">{formContent}</div>
       </div>
     </div>
   );

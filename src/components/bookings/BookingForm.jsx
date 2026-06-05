@@ -9,9 +9,9 @@ import {
 import { formatCurrency } from '../../utils/helpers';
 import BookingStatusChip from '../common/BookingStatusChip';
 import {
-  PrimaryButton,
   SecondaryButton,
   OutlineButton,
+  DarkButton,
 } from '../common/BrandButton';
 import { resolveFormBookingStatus } from '../../utils/bookingStatus';
 import { computeRemainingAmount, getTotalPaid } from '../../utils/payments';
@@ -32,6 +32,7 @@ function BookingForm({
   onClose,
   isSubmitting = false,
   readOnly = false,
+  variant = 'modal',
 }) {
   useEffect(() => {
     function handleEsc(event) {
@@ -67,34 +68,9 @@ function BookingForm({
     ? bookingForm.payments
     : [];
 
-  return (
-    <div className="modal-backdrop" onClick={handleBackdropClick}>
-      <div className="modal-card booking-modal">
-        <div className="modal-header modal-header-row">
-          <div>
-            <h2 className="modal-title">
-              {editingBookingId ? 'Edit Booking' : 'New Booking'}
-            </h2>
-            <p className="modal-subtitle">
-              Add guest and tour booking details.
-            </p>
-          </div>
-
-          <button
-            type="button"
-            className="modal-close-btn"
-            onClick={onClose}
-            disabled={isSubmitting}
-            aria-label="Close modal"
-            title="Close"
-          >
-            ×
-          </button>
-        </div>
-
-        <div className="modal-body">
-          <form onSubmit={onSubmit}>
-            <fieldset disabled={readOnly || isSubmitting}>
+  const formContent = (
+    <form onSubmit={onSubmit}>
+      <fieldset disabled={readOnly || isSubmitting}>
               <div className="form-section">
                 <div className="form-section-title">👤 Guest & Tour</div>
 
@@ -521,31 +497,49 @@ function BookingForm({
               </div>
             </fieldset>
 
-            <div className="modal-footer">
-              <OutlineButton
-                type="button"
-                onClick={onClose}
-                disabled={isSubmitting}
-              >
+            <div className={variant === 'page' ? 'form-page-footer' : 'modal-footer'}>
+              <OutlineButton type="button" onClick={onClose} disabled={isSubmitting}>
                 Cancel
               </OutlineButton>
               {!readOnly && (
-                <PrimaryButton
-                  type="submit"
-                  disabled={isSubmitting}
-                >
+                <DarkButton type="submit" disabled={isSubmitting}>
                   {isSubmitting
-                    ? editingBookingId
-                      ? 'Saving...'
-                      : 'Creating...'
+                    ? 'Saving...'
                     : editingBookingId
-                      ? 'Update Booking'
-                      : 'Create Booking'}
-                </PrimaryButton>
+                      ? 'Save changes'
+                      : 'Create booking'}
+                </DarkButton>
               )}
             </div>
           </form>
+  );
+
+  if (variant === 'page') {
+    return <div className="booking-form-page">{formContent}</div>;
+  }
+
+  return (
+    <div className="modal-backdrop" onClick={handleBackdropClick}>
+      <div className="modal-card booking-modal">
+        <div className="modal-header modal-header-row">
+          <div>
+            <h2 className="modal-title">
+              {editingBookingId ? 'Edit Booking' : 'New Booking'}
+            </h2>
+            <p className="modal-subtitle">Add guest and tour booking details.</p>
+          </div>
+          <button
+            type="button"
+            className="modal-close-btn"
+            onClick={onClose}
+            disabled={isSubmitting}
+            aria-label="Close modal"
+            title="Close"
+          >
+            ×
+          </button>
         </div>
+        <div className="modal-body">{formContent}</div>
       </div>
     </div>
   );

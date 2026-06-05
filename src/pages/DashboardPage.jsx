@@ -1,9 +1,12 @@
 import { useMemo } from 'react';
+import { Link as RouterLink, useNavigate } from 'react-router-dom';
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import Grid from '@mui/material/Grid';
 import Typography from '@mui/material/Typography';
 import Button from '@mui/material/Button';
+import LinearProgress from '@mui/material/LinearProgress';
+import Link from '@mui/material/Link';
 import Table from '@mui/material/Table';
 import TableBody from '@mui/material/TableBody';
 import TableCell from '@mui/material/TableCell';
@@ -15,17 +18,17 @@ import ListItem from '@mui/material/ListItem';
 import ListItemText from '@mui/material/ListItemText';
 import Divider from '@mui/material/Divider';
 
-import AnalyticsWidgetSummary from '../components/ui/AnalyticsWidgetSummary';
+import CustomBreadcrumbs from '../components/ui/CustomBreadcrumbs';
+import AnalyticsWidgetSummary, { DarkIncomeCard } from '../components/ui/AnalyticsWidgetSummary';
 import Chart from '../components/ui/Chart';
 import { useChart } from '../components/ui/useChart';
 import BookingStatusChip from '../components/common/BookingStatusChip';
 import { SecondaryButton } from '../components/common/BrandButton';
-import {
-  computeDashboardMetrics,
-  formatAuditTime,
-} from '../utils/dashboardMetrics';
+import { computeDashboardMetrics, formatAuditTime } from '../utils/dashboardMetrics';
 import { resolveBookingStatus } from '../utils/bookingStatus';
+import { getBookingStatusCounts } from '../utils/bookingStatusCounts';
 import { formatCurrency, formatDateForDisplay } from '../utils/helpers';
+import { useAppData } from '../context/AppDataContext';
 
 function ChartCard({ title, subheader, children, action }) {
   return (
@@ -62,15 +65,12 @@ function EmptyChartMessage({ message = 'No data yet' }) {
   );
 }
 
-export default function DashboardPage({
-  bookings,
-  userProfile,
-  isAdmin,
-  onNewBooking,
-  onViewBooking,
-  onViewAllBookings,
-}) {
+export default function DashboardPage() {
+  const navigate = useNavigate();
+  const { bookings, userProfile, isAdmin } = useAppData();
   const metrics = useMemo(() => computeDashboardMetrics(bookings), [bookings]);
+  const statusCounts = useMemo(() => getBookingStatusCounts(bookings), [bookings]);
+  const maxStatus = Math.max(...Object.values(statusCounts).filter((_, i, arr) => i > 0), 1);
 
   const statusChartOptions = useChart({
     labels: metrics.statusCounts.map((s) => s.label),
@@ -112,30 +112,53 @@ export default function DashboardPage({
     plotOptions: { pie: { donut: { size: '65%' } } },
   });
 
-  const welcomeName = userProfile?.fullName?.split(' ')[0] || 'there';
-
   return (
     <Box>
-      <Box sx={{ mb: 4, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 2 }}>
-        <Box>
-          <Typography variant="h4">Hi, Welcome back 👋</Typography>
-          <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-            {welcomeName} — here&apos;s what&apos;s happening with your tours
-          </Typography>
-        </Box>
+      <CustomBreadcrumbs links={[{ name: 'Dashboard' }]} />
+      <Box sx={{ mb: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 2 }}>
+        <Typography variant="body2" color="text.secondary">
+          Overview for {userProfile?.fullName?.split(' ')[0] || 'team'}
+        </Typography>
         {isAdmin && (
-          <SecondaryButton onClick={onNewBooking}>+ New Booking</SecondaryButton>
+          <SecondaryButton onClick={() => navigate('/bookings/new')}>+ New Booking</SecondaryButton>
         )}
       </Box>
 
       <Grid container spacing={3}>
-        {metrics.kpiWidgets.map((widget) => (
+        <Grid size={{ xs: 12, md: 3 }}>
+          <DarkIncomeCard
+            title="Total revenue"
+            total={metrics.kpiWidgets.find((w) => w.id === 'revenue')?.total || formatCurrency(0)}
+            percent={metrics.kpiWidgets.find((w) => w.id === 'revenue')?.percent}
+            chartSeries={metrics.kpiWidgets.find((w) => w.id === 'revenue')?.chart?.series}
+          />
+        </Grid>
+        {metrics.kpiWidgets.filter((w) => w.id !== 'revenue').map((widget) => (
           <Grid key={widget.id} size={{ xs: 12, sm: 6, md: 3 }}>
-            <AnalyticsWidgetSummary {...widget} />
+            <AnalyticsWidgetSummary {...widget} color={widget.id === 'outstanding' ? 'warning' : widget.id === 'profit' ? 'success' : 'info'} />
           </Grid>
         ))}
 
-        <Grid size={{ xs: 12, md: 6, lg: 4 }}>
+        <Grid size={{ xs: 12, md: 4 }}>
+          <ChartCard title="Booking status" subheader="Distribution">
+            {['Upcoming', 'On-Going', 'Completed', 'Cancelled'].map((status) => (
+              <Box key={status} sx={{ mb: 2 }}>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
+                  <Typography variant="body2">{status}</Typography>
+                  <Typography variant="body2" fontWeight={700}>{statusCounts[status] || 0}</Typography>
+                </Box>
+                <LinearProgress
+                  variant="determinate"
+                  value={((statusCounts[status] || 0) / maxStatus) * 100}
+                  sx={{ height: 8, borderRadius: 1 }}
+                  color={status === 'Cancelled' ? 'error' : status === 'Upcoming' ? 'warning' : 'success'}
+                />
+              </Box>
+            ))}
+          </ChartCard>
+        </Grid>
+
+        <Grid size={{ xs: 12, md: 8, lg: 4 }}>
           <ChartCard title="Bookings by status" subheader="Current distribution">
             {metrics.statusCounts.length ? (
               <Chart
@@ -219,7 +242,7 @@ export default function DashboardPage({
                     <ListItem
                       disableGutters
                       sx={{ cursor: 'pointer', py: 1 }}
-                      onClick={() => onViewBooking?.(booking)}
+                      onClick={() => navigate(`/bookings/${booking.id}`)}
                     >
                       <ListItemText
                         primary={booking.guestName}
@@ -266,7 +289,7 @@ export default function DashboardPage({
           <Card sx={{ p: 0 }}>
             <Box sx={{ p: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <Typography variant="h6">Recent bookings</Typography>
-              <Button size="small" onClick={onViewAllBookings}>
+              <Button size="small" onClick={() => navigate('/bookings')}>
                 View all
               </Button>
             </Box>
@@ -289,7 +312,7 @@ export default function DashboardPage({
                         key={booking.id}
                         hover
                         sx={{ cursor: 'pointer' }}
-                        onClick={() => onViewBooking?.(booking)}
+                        onClick={() => navigate(`/bookings/${booking.id}`)}
                       >
                         <TableCell>{booking.bookingRef || '-'}</TableCell>
                         <TableCell>{booking.guestName}</TableCell>

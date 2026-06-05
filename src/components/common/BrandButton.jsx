@@ -1,4 +1,4 @@
-import { Button } from '@mui/material';
+import Button from '@mui/material/Button';
 
 export function PrimaryButton({ children, ...props }) {
   return (
@@ -16,9 +16,17 @@ export function SecondaryButton({ children, ...props }) {
   );
 }
 
+export function DarkButton({ children, ...props }) {
+  return (
+    <Button variant="contained" color="inherit" {...props}>
+      {children}
+    </Button>
+  );
+}
+
 export function OutlineButton({ children, ...props }) {
   return (
-    <Button variant="outlined" color="primary" {...props}>
+    <Button variant="outlined" {...props}>
       {children}
     </Button>
   );

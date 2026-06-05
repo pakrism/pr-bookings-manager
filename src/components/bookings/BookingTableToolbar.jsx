@@ -9,10 +9,12 @@ export default function BookingTableToolbar({
   bookings,
   searchValue,
   onSearchChange,
-  statusFilter,
-  onStatusChange,
   monthFilter,
   onMonthChange,
+  dateStart,
+  dateEnd,
+  onDateStartChange,
+  onDateEndChange,
 }) {
   const monthOptions = getTravelMonthOptions(bookings);
 
@@ -20,9 +22,25 @@ export default function BookingTableToolbar({
     <TableToolbar
       searchValue={searchValue}
       onSearchChange={onSearchChange}
-      placeholder="Search by guest, package, destination, ref..."
+      placeholder="Search customer or booking ref..."
       filterSlot={
         <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+          <TextField
+            type="date"
+            label="Start date"
+            value={dateStart}
+            onChange={(e) => onDateStartChange?.(e.target.value)}
+            InputLabelProps={{ shrink: true }}
+            sx={{ minWidth: 150 }}
+          />
+          <TextField
+            type="date"
+            label="End date"
+            value={dateEnd}
+            onChange={(e) => onDateEndChange?.(e.target.value)}
+            InputLabelProps={{ shrink: true }}
+            sx={{ minWidth: 150 }}
+          />
           <TextField
             select
             label="Month"
@@ -32,25 +50,8 @@ export default function BookingTableToolbar({
           >
             <MenuItem value="All months">All months</MenuItem>
             {monthOptions.map((key) => (
-              <MenuItem key={key} value={key}>
-                {formatMonthLabel(key)}
-              </MenuItem>
+              <MenuItem key={key} value={key}>{formatMonthLabel(key)}</MenuItem>
             ))}
-          </TextField>
-
-          <TextField
-            select
-            label="Status"
-            value={statusFilter}
-            onChange={(e) => onStatusChange(e.target.value)}
-            sx={{ minWidth: 140 }}
-          >
-            <MenuItem value="All Status">All Status</MenuItem>
-            <MenuItem value="Upcoming">Upcoming</MenuItem>
-            <MenuItem value="On-Going">On-Going</MenuItem>
-            <MenuItem value="Completed">Completed</MenuItem>
-            <MenuItem value="Cancelled">Cancelled</MenuItem>
-            <MenuItem value="Refunded">Refunded</MenuItem>
           </TextField>
         </Box>
       }

@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import Table from '@mui/material/Table';
@@ -6,54 +7,77 @@ import TableBody from '@mui/material/TableBody';
 import TableContainer from '@mui/material/TableContainer';
 import TableHead from '@mui/material/TableHead';
 import TablePagination from '@mui/material/TablePagination';
-import Typography from '@mui/material/Typography';
+import FormControlLabel from '@mui/material/FormControlLabel';
+import Switch from '@mui/material/Switch';
 
+import CustomBreadcrumbs from '../components/ui/CustomBreadcrumbs';
 import PageHeader from '../components/ui/PageHeader';
-import {
-  SecondaryButton,
-  OutlineButton,
-} from '../components/common/BrandButton';
+import TableTabs from '../components/ui/TableTabs';
+import EmptyContent from '../components/ui/EmptyContent';
+import { SecondaryButton, OutlineButton } from '../components/common/BrandButton';
 import BookingTableHead from '../components/bookings/BookingTableHead';
 import BookingTableRow from '../components/bookings/BookingTableRow';
 import BookingTableToolbar from '../components/bookings/BookingTableToolbar';
 import { prepareBookingsForList } from '../utils/bookingFilters';
 import { getBookingProfit } from '../utils/bookingFinancials';
 import { resolveBookingStatus } from '../utils/bookingStatus';
+import {
+  filterBookingsByStatusTab,
+  getBookingStatusTabs,
+} from '../utils/bookingStatusCounts';
 import { applySort, getComparator } from '../utils/tableSort';
 import { useTable, emptyRows } from '../hooks/useTable';
+import BookingQuickUpdateDialog from '../components/bookings/BookingQuickUpdateDialog';
+import { useAppData } from '../context/AppDataContext';
 
-export default function BookingsPage({
-  bookings,
-  searchTerm,
-  statusFilter,
-  monthFilter,
-  onSearchChange,
-  onStatusChange,
-  onMonthChange,
-  onView,
-  onEdit,
-  onDelete,
-  canEdit,
-  onNewBooking,
-  onExportCsv,
-  onShowReminders,
-}) {
+export default function BookingsPage() {
+  const navigate = useNavigate();
+  const {
+    bookings,
+    bookingSearch,
+    setBookingSearch,
+    bookingStatusTab,
+    setBookingStatusTab,
+    bookingMonthFilter,
+    setBookingMonthFilter,
+    bookingDateStart,
+    setBookingDateStart,
+    bookingDateEnd,
+    setBookingDateEnd,
+    isAdmin,
+    handleExportBookingsCsv,
+    setShowRemindersModal,
+    navigateToBooking,
+    navigateToEditBooking,
+    requestDeleteBooking,
+    setQuickUpdateBooking,
+    quickUpdateBooking,
+  } = useAppData();
+
   const table = useTable({
     defaultOrderBy: 'travelStartDate',
     defaultOrder: 'desc',
     defaultRowsPerPage: 10,
   });
 
-  const filtered = useMemo(
-    () =>
-      prepareBookingsForList(bookings, {
-        searchTerm,
-        statusFilter,
-        monthFilter,
-        sortKey: 'departure_desc',
-      }),
-    [bookings, searchTerm, statusFilter, monthFilter]
-  );
+  const statusTabs = useMemo(() => getBookingStatusTabs(bookings), [bookings]);
+
+  const filtered = useMemo(() => {
+    let list = filterBookingsByStatusTab(bookings, bookingStatusTab);
+    list = prepareBookingsForList(list, {
+      searchTerm: bookingSearch,
+      statusFilter: 'All Status',
+      monthFilter: bookingMonthFilter,
+      sortKey: 'departure_desc',
+    });
+    if (bookingDateStart) {
+      list = list.filter((b) => (b.travelStartDate || '') >= bookingDateStart);
+    }
+    if (bookingDateEnd) {
+      list = list.filter((b) => (b.travelStartDate || '') <= bookingDateEnd);
+    }
+    return list;
+  }, [bookings, bookingStatusTab, bookingSearch, bookingMonthFilter, bookingDateStart, bookingDateEnd]);
 
   const enriched = useMemo(
     () =>
@@ -66,8 +90,7 @@ export default function BookingsPage({
   );
 
   const sorted = useMemo(
-    () =>
-      applySort(enriched, getComparator(table.order, table.orderBy)),
+    () => applySort(enriched, getComparator(table.order, table.orderBy)),
     [enriched, table.order, table.orderBy]
   );
 
@@ -79,52 +102,52 @@ export default function BookingsPage({
   if (!bookings.length) {
     return (
       <Box>
-        <PageHeader
-          title="Bookings"
-          subtitle="Manage tour reservations"
+        <CustomBreadcrumbs links={[{ name: 'Dashboard', href: '/dashboard' }, { name: 'List' }]} />
+        <EmptyContent
+          title="No bookings yet"
+          description="Create your first booking to start tracking records."
           action={
-            canEdit && (
-              <SecondaryButton onClick={onNewBooking}>+ New Booking</SecondaryButton>
+            isAdmin && (
+              <SecondaryButton onClick={() => navigate('/bookings/new')}>
+                + New Booking
+              </SecondaryButton>
             )
           }
         />
-        <Card sx={{ p: 6, textAlign: 'center' }}>
-          <Typography variant="h6" gutterBottom>
-            No bookings added yet
-          </Typography>
-          <Typography variant="body2" color="text.secondary">
-            Create your first booking to start tracking records.
-          </Typography>
-        </Card>
       </Box>
     );
   }
 
   return (
     <Box>
+      <CustomBreadcrumbs links={[{ name: 'Dashboard', href: '/dashboard' }, { name: 'Bookings' }, { name: 'List' }]} />
       <PageHeader
-        title="Bookings"
-        subtitle={`${bookings.length} total · ${filtered.length} shown`}
+        title="List"
+        subtitle={`${filtered.length} of ${bookings.length} bookings`}
         action={
           <>
-            <OutlineButton onClick={onShowReminders}>Departure reminders</OutlineButton>
-            <OutlineButton onClick={onExportCsv}>Export CSV</OutlineButton>
-            {canEdit && (
-              <SecondaryButton onClick={onNewBooking}>+ New Booking</SecondaryButton>
+            <OutlineButton onClick={() => setShowRemindersModal(true)}>Departure reminders</OutlineButton>
+            <OutlineButton onClick={handleExportBookingsCsv}>Export CSV</OutlineButton>
+            {isAdmin && (
+              <SecondaryButton onClick={() => navigate('/bookings/new')}>+ New Booking</SecondaryButton>
             )}
           </>
         }
       />
 
-      <Card>
+      <Card sx={{ overflow: 'hidden' }}>
+        <TableTabs tabs={statusTabs} value={bookingStatusTab} onChange={setBookingStatusTab} />
+
         <BookingTableToolbar
           bookings={bookings}
-          searchValue={searchTerm}
-          onSearchChange={onSearchChange}
-          statusFilter={statusFilter}
-          onStatusChange={onStatusChange}
-          monthFilter={monthFilter}
-          onMonthChange={onMonthChange}
+          searchValue={bookingSearch}
+          onSearchChange={setBookingSearch}
+          monthFilter={bookingMonthFilter}
+          onMonthChange={setBookingMonthFilter}
+          dateStart={bookingDateStart}
+          dateEnd={bookingDateEnd}
+          onDateStartChange={setBookingDateStart}
+          onDateEndChange={setBookingDateEnd}
         />
 
         <TableContainer sx={{ overflowX: 'auto' }}>
@@ -137,10 +160,7 @@ export default function BookingsPage({
                 rowCount={sorted.length}
                 numSelected={table.selected.length}
                 onSelectAll={(checked) =>
-                  table.onSelectAllRows(
-                    checked,
-                    paginated.map((row) => row.id)
-                  )
+                  table.onSelectAllRows(checked, paginated.map((row) => row.id))
                 }
               />
             </TableHead>
@@ -151,37 +171,45 @@ export default function BookingsPage({
                   row={row}
                   selected={table.selected.includes(row.id)}
                   onSelectRow={table.onSelectRow}
-                  onView={onView}
-                  onEdit={onEdit}
-                  onDelete={onDelete}
-                  canEdit={canEdit}
+                  onView={navigateToBooking}
+                  onEdit={navigateToEditBooking}
+                  onDelete={requestDeleteBooking}
+                  onQuickUpdate={setQuickUpdateBooking}
+                  canEdit={isAdmin}
                 />
               ))}
-              {emptyRows(table.page, table.rowsPerPage, sorted.length) > 0 && (
-                <tr style={{ height: 53 * emptyRows(table.page, table.rowsPerPage, sorted.length) }} />
-              )}
             </TableBody>
           </Table>
         </TableContainer>
 
         {filtered.length === 0 && (
-          <Box sx={{ p: 4, textAlign: 'center' }}>
-            <Typography variant="body2" color="text.secondary">
-              No matching bookings. Try a different search or filter.
-            </Typography>
-          </Box>
+          <EmptyContent title="No matching bookings" description="Try different filters." sx={{ py: 4 }} />
         )}
 
-        <TablePagination
-          component="div"
-          count={sorted.length}
-          page={table.page}
-          onPageChange={table.onChangePage}
-          rowsPerPage={table.rowsPerPage}
-          onRowsPerPageChange={table.onChangeRowsPerPage}
-          rowsPerPageOptions={[5, 10, 25]}
-        />
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', px: 2 }}>
+          <FormControlLabel
+            control={<Switch checked={table.dense} onChange={table.onChangeDense} size="small" />}
+            label="Dense"
+          />
+          <TablePagination
+            component="div"
+            count={sorted.length}
+            page={table.page}
+            onPageChange={table.onChangePage}
+            rowsPerPage={table.rowsPerPage}
+            onRowsPerPageChange={table.onChangeRowsPerPage}
+            rowsPerPageOptions={[5, 10, 25]}
+          />
+        </Box>
       </Card>
+
+      {quickUpdateBooking && (
+        <BookingQuickUpdateDialog
+          booking={quickUpdateBooking}
+          open
+          onClose={() => setQuickUpdateBooking(null)}
+        />
+      )}
     </Box>
   );
 }
