@@ -25,9 +25,7 @@ export default function BookingFormPage() {
     handlePaymentChange,
     handleAddPayment,
     handleRemovePayment,
-    handleApplySuggestedPrice,
     handleSaveBooking,
-    suggestedPackagePrice,
   } = useAppData();
 
   useEffect(() => {
@@ -62,8 +60,6 @@ export default function BookingFormPage() {
         onPaymentChange={handlePaymentChange}
         onAddPayment={handleAddPayment}
         onRemovePayment={handleRemovePayment}
-        onApplySuggestedPrice={handleApplySuggestedPrice}
-        suggestedPackagePrice={suggestedPackagePrice}
         onSubmit={handleSaveBooking}
         onClose={() => navigate(isEdit && id ? `/bookings/${id}` : '/bookings')}
         isSubmitting={isSavingBooking}

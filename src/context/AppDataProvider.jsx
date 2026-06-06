@@ -11,9 +11,10 @@ import { toFormTourType } from '../utils/tourType';
 import { getBookingSyncPatch } from '../utils/bookingSync';
 import {
   emptyPaymentRow,
+  emptyLedgerRow,
   getPaymentsFromBooking,
   normalizeFormPayments,
-  computeRemainingAmount,
+  computeFinancialsFromLedger,
 } from '../utils/payments';
 import {
   appendAuditLog,
@@ -50,6 +51,7 @@ export function AppDataProvider({ authUser, userProfile, children }) {
   const [bookingMonthFilter, setBookingMonthFilter] = useState('All months');
   const [bookingDateStart, setBookingDateStart] = useState('');
   const [bookingDateEnd, setBookingDateEnd] = useState('');
+  const [bookingBookedByFilter, setBookingBookedByFilter] = useState('all');
   const [isSavingBooking, setIsSavingBooking] = useState(false);
   const [toast, setToast] = useState(null);
   const [showRemindersModal, setShowRemindersModal] = useState(false);
@@ -141,14 +143,10 @@ export function AppDataProvider({ authUser, userProfile, children }) {
     return Number(selectedPackage.pricePerPerson || 0) * totalPersons(form);
   }
 
-  const suggestedPackagePrice = useMemo(
-    () => getSuggestedPackagePrice(bookingForm),
-    [bookingForm, packages]
-  );
-
   function loadBookingIntoForm(booking) {
     const payments = getPaymentsFromBooking(booking).map((payment) => ({
       id: payment.id,
+      type: payment.type || 'credit',
       amount: String(payment.amount ?? ''),
       paidAt: payment.paidAt || '',
       note: payment.note || '',
@@ -177,8 +175,6 @@ export function AppDataProvider({ authUser, userProfile, children }) {
       packagePrice: booking.packagePrice || '',
       packagePriceTouched: true,
       payments: payments.length ? payments : [emptyPaymentRow()],
-      totalExpenses: booking.totalExpenses ?? '',
-      totalProfit: booking.totalProfit ?? '',
       specialNotes: booking.specialNotes || '',
       statusOverride: ['Cancelled', 'Refunded'].includes(booking.bookingStatus)
         ? booking.bookingStatus
@@ -230,10 +226,10 @@ export function AppDataProvider({ authUser, userProfile, children }) {
     });
   }
 
-  function handleAddPayment() {
+  function handleAddPayment(type = 'credit') {
     setBookingForm((prev) => ({
       ...prev,
-      payments: [...(prev.payments || []), emptyPaymentRow()],
+      payments: [...(prev.payments || []), emptyLedgerRow(type)],
     }));
   }
 
@@ -241,14 +237,6 @@ export function AppDataProvider({ authUser, userProfile, children }) {
     setBookingForm((prev) => ({
       ...prev,
       payments: (prev.payments || []).filter((_, i) => i !== index),
-    }));
-  }
-
-  function handleApplySuggestedPrice() {
-    setBookingForm((prev) => ({
-      ...prev,
-      packagePrice: String(getSuggestedPackagePrice(prev) || ''),
-      packagePriceTouched: false,
     }));
   }
 
@@ -350,17 +338,20 @@ export function AppDataProvider({ authUser, userProfile, children }) {
 
     const packagePrice = Number(bookingForm.packagePrice || 0);
     const payments = normalizeFormPayments(bookingForm.payments);
-    const advanceReceived = payments.reduce((sum, p) => sum + p.amount, 0);
     const bookingStatus = bookingForm.statusOverride
       ? bookingForm.statusOverride
       : computeBookingStatus(bookingForm.travelStartDate, bookingForm.travelEndDate);
-    const remainingAmount = computeRemainingAmount(packagePrice, advanceReceived, bookingStatus);
-    const hasFinancialInput =
-      bookingForm.totalExpenses !== '' || bookingForm.totalProfit !== '';
-    const financialFields = hasFinancialInput
+    const ledgerFinancials = computeFinancialsFromLedger(
+      packagePrice,
+      payments,
+      bookingStatus
+    );
+    const advanceReceived = ledgerFinancials.totalPaid;
+    const remainingAmount = ledgerFinancials.balanceDue;
+    const financialFields = payments.length
       ? {
-          totalExpenses: Number(bookingForm.totalExpenses || 0),
-          totalProfit: packagePrice - Number(bookingForm.totalExpenses || 0),
+          totalExpenses: ledgerFinancials.totalExpenses,
+          totalProfit: ledgerFinancials.totalProfit,
         }
       : { totalExpenses: null, totalProfit: null };
 
@@ -567,6 +558,8 @@ export function AppDataProvider({ authUser, userProfile, children }) {
     setBookingDateStart,
     bookingDateEnd,
     setBookingDateEnd,
+    bookingBookedByFilter,
+    setBookingBookedByFilter,
     isSavingBooking,
     toast,
     showRemindersModal,
@@ -576,7 +569,6 @@ export function AppDataProvider({ authUser, userProfile, children }) {
     quickUpdateBooking,
     setQuickUpdateBooking,
     showToast,
-    suggestedPackagePrice,
     resetPackageForm,
     resetBookingForm,
     loadBookingIntoForm,
@@ -586,7 +578,6 @@ export function AppDataProvider({ authUser, userProfile, children }) {
     handlePaymentChange,
     handleAddPayment,
     handleRemovePayment,
-    handleApplySuggestedPrice,
     handleBookingPackageChange,
     handleSavePackage,
     handleSaveBooking,

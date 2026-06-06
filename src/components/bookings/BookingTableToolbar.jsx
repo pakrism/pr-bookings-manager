@@ -1,7 +1,9 @@
 import Box from '@mui/material/Box';
 import MenuItem from '@mui/material/MenuItem';
 import TextField from '@mui/material/TextField';
+import Typography from '@mui/material/Typography';
 import TableToolbar from '../ui/TableToolbar';
+import { BOOKED_BY_OPTIONS } from '../../data/constants';
 import { getTravelMonthOptions } from '../../utils/bookingFilters';
 import { formatMonthLabel } from '../../utils/datePeriods';
 
@@ -15,8 +17,11 @@ export default function BookingTableToolbar({
   dateEnd,
   onDateStartChange,
   onDateEndChange,
+  bookedByFilter,
+  onBookedByChange,
 }) {
   const monthOptions = getTravelMonthOptions(bookings);
+  const showRangeHint = dateStart && dateEnd;
 
   return (
     <TableToolbar
@@ -24,7 +29,7 @@ export default function BookingTableToolbar({
       onSearchChange={onSearchChange}
       placeholder="Search customer or booking ref..."
       filterSlot={
-        <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+        <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', alignItems: 'center' }}>
           <TextField
             type="date"
             label="Start date"
@@ -53,6 +58,23 @@ export default function BookingTableToolbar({
               <MenuItem key={key} value={key}>{formatMonthLabel(key)}</MenuItem>
             ))}
           </TextField>
+          <TextField
+            select
+            label="Booked by"
+            value={bookedByFilter || 'all'}
+            onChange={(e) => onBookedByChange?.(e.target.value)}
+            sx={{ minWidth: 150 }}
+          >
+            <MenuItem value="all">All</MenuItem>
+            {BOOKED_BY_OPTIONS.map((option) => (
+              <MenuItem key={option} value={option}>{option}</MenuItem>
+            ))}
+          </TextField>
+          {showRangeHint && (
+            <Typography variant="caption" color="text.secondary" sx={{ alignSelf: 'center' }}>
+              Trips overlapping {dateStart} to {dateEnd}
+            </Typography>
+          )}
         </Box>
       }
     />

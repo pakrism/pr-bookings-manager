@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import Box from '@mui/material/Box';
 import Grid from '@mui/material/Grid';
 import Stack from '@mui/material/Stack';
@@ -26,11 +27,27 @@ import {
   DarkButton,
 } from '../common/BrandButton';
 import { resolveFormBookingStatus } from '../../utils/bookingStatus';
-import { computeRemainingAmount, getTotalPaid } from '../../utils/payments';
+import {
+  computeFinancialsFromLedger,
+  getLedgerWithRunningCash,
+} from '../../utils/payments';
 import ProfitShareBreakdown from '../profit/ProfitShareBreakdown';
 
 function fieldChange(onChange) {
   return (event) => onChange(event);
+}
+
+function SummaryMetric({ label, value, severity = 'info' }) {
+  return (
+    <Alert severity={severity} icon={false} sx={{ py: 1.5, height: '100%' }}>
+      <Typography variant="caption" color="text.secondary">
+        {label}
+      </Typography>
+      <Typography variant="h6" fontWeight={700}>
+        {value}
+      </Typography>
+    </Alert>
+  );
 }
 
 function BookingForm({
@@ -42,8 +59,6 @@ function BookingForm({
   onPaymentChange,
   onAddPayment,
   onRemovePayment,
-  onApplySuggestedPrice,
-  suggestedPackagePrice,
   onSubmit,
   onClose,
   isSubmitting = false,
@@ -55,15 +70,31 @@ function BookingForm({
     Number(bookingForm.infants || 0);
 
   const autoStatus = resolveFormBookingStatus(bookingForm);
-  const totalPaid = getTotalPaid(bookingForm.payments || []);
-  const balance = computeRemainingAmount(
-    bookingForm.packagePrice,
-    totalPaid,
-    autoStatus
-  );
-
   const payments = bookingForm.payments?.length ? bookingForm.payments : [];
   const disabled = readOnly || isSubmitting;
+
+  const financials = useMemo(
+    () => computeFinancialsFromLedger(bookingForm.packagePrice, payments, autoStatus),
+    [bookingForm.packagePrice, payments, autoStatus]
+  );
+
+  const ledgerRows = useMemo(
+    () => getLedgerWithRunningCash(payments),
+    [payments]
+  );
+
+  const profitPreviewBooking = useMemo(
+    () => ({
+      ...bookingForm,
+      totalExpenses: financials.totalExpenses,
+      totalProfit: financials.totalProfit,
+    }),
+    [bookingForm, financials.totalExpenses, financials.totalProfit]
+  );
+
+  const showProfitPreview =
+    financials.totalProfit != null &&
+    (ledgerRows.length > 0 || financials.totalExpenses > 0);
 
   return (
     <Box component="form" onSubmit={onSubmit}>
@@ -297,9 +328,9 @@ function BookingForm({
           />
         </FormSection>
 
-        <FormSection title="Payment & financials" subtitle="Pricing, payments, profit, and status">
-          <Grid container spacing={2}>
-            <Grid size={{ xs: 12, md: 6 }}>
+        <FormSection title="Payment & financials" subtitle="Credits, expenses, profit, and status">
+          <Grid container spacing={2} sx={{ mb: 3 }}>
+            <Grid size={{ xs: 12, md: 4 }}>
               <TextField
                 fullWidth
                 type="number"
@@ -310,150 +341,143 @@ function BookingForm({
                 onChange={fieldChange(onChange)}
               />
             </Grid>
-            <Grid size={{ xs: 12, md: 6 }}>
-              <Stack spacing={1}>
-                <Typography variant="caption" color="text.secondary">
-                  Suggested price
-                </Typography>
-                <Stack direction="row" spacing={1} alignItems="center">
-                  <Typography variant="h6" fontWeight={700}>
-                    {formatCurrency(suggestedPackagePrice || 0)}
-                  </Typography>
-                  {!readOnly && suggestedPackagePrice > 0 && (
-                    <SecondaryButton type="button" size="small" onClick={onApplySuggestedPrice}>
-                      Apply
-                    </SecondaryButton>
-                  )}
-                </Stack>
-              </Stack>
+          </Grid>
+
+          <Grid container spacing={2} sx={{ mb: 3 }}>
+            <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+              <SummaryMetric label="Total paid" value={formatCurrency(financials.totalPaid)} />
+            </Grid>
+            <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+              <SummaryMetric
+                label="Balance due"
+                value={formatCurrency(financials.balanceDue)}
+                severity={financials.balanceDue > 0 ? 'warning' : 'success'}
+              />
+            </Grid>
+            <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+              <SummaryMetric
+                label="Total expenses"
+                value={formatCurrency(financials.totalExpenses ?? 0)}
+              />
+            </Grid>
+            <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+              <SummaryMetric
+                label="Profit"
+                value={
+                  financials.totalProfit != null
+                    ? formatCurrency(financials.totalProfit)
+                    : '-'
+                }
+              />
+            </Grid>
+            <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+              <SummaryMetric
+                label="Net cash on hand"
+                value={formatCurrency(financials.netCash)}
+                severity={financials.netCash < 0 ? 'error' : 'info'}
+              />
             </Grid>
           </Grid>
 
-          <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mt: 3, mb: 1.5 }}>
+          <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1.5 }}>
             <Typography variant="subtitle1" fontWeight={700}>
-              Payments
+              Payment ledger
             </Typography>
             {!readOnly && (
-              <SecondaryButton type="button" size="small" onClick={onAddPayment}>
-                + Add payment
-              </SecondaryButton>
+              <Stack direction="row" spacing={1}>
+                <SecondaryButton type="button" size="small" onClick={() => onAddPayment('credit')}>
+                  + Add credit
+                </SecondaryButton>
+                <SecondaryButton type="button" size="small" onClick={() => onAddPayment('debit')}>
+                  + Add debit
+                </SecondaryButton>
+              </Stack>
             )}
           </Stack>
 
           <Stack spacing={1.5} sx={{ mb: 3 }}>
-            {payments.map((payment, index) => (
-              <Card
-                key={payment.id || index}
-                variant="outlined"
-                sx={{ p: 2, bgcolor: (theme) => alpha(theme.palette.grey[500], 0.04) }}
-              >
-                <Grid container spacing={2} alignItems="center">
-                  <Grid size={{ xs: 12, sm: 3 }}>
-                    <TextField
-                      fullWidth
-                      type="number"
-                      inputProps={{ min: 0 }}
-                      label="Amount"
-                      value={payment.amount}
-                      onChange={(e) => onPaymentChange(index, 'amount', e.target.value)}
-                    />
-                  </Grid>
-                  <Grid size={{ xs: 12, sm: 3 }}>
-                    <TextField
-                      fullWidth
-                      type="date"
-                      label="Paid on"
-                      value={payment.paidAt}
-                      onChange={(e) => onPaymentChange(index, 'paidAt', e.target.value)}
-                      slotProps={{ inputLabel: { shrink: true } }}
-                    />
-                  </Grid>
-                  <Grid size={{ xs: 12, sm: 4 }}>
-                    <TextField
-                      fullWidth
-                      label="Note"
-                      value={payment.note}
-                      onChange={(e) => onPaymentChange(index, 'note', e.target.value)}
-                      placeholder="Optional"
-                    />
-                  </Grid>
-                  <Grid size={{ xs: 12, sm: 2 }}>
-                    {!readOnly && payments.length > 1 && (
-                      <IconButton
-                        color="error"
-                        onClick={() => onRemovePayment(index)}
-                        aria-label="Remove payment"
+            {payments.map((payment, index) => {
+              const runningRow = ledgerRows.find((row) => row.id === payment.id);
+              return (
+                <Card
+                  key={payment.id || index}
+                  variant="outlined"
+                  sx={{ p: 2, bgcolor: (theme) => alpha(theme.palette.grey[500], 0.04) }}
+                >
+                  <Grid container spacing={2} alignItems="center">
+                    <Grid size={{ xs: 12, sm: 2 }}>
+                      <TextField
+                        fullWidth
+                        select
+                        label="Type"
+                        value={payment.type || 'credit'}
+                        onChange={(e) => onPaymentChange(index, 'type', e.target.value)}
                       >
-                        <i className="ri-delete-bin-line" />
-                      </IconButton>
-                    )}
+                        <MenuItem value="credit">Credit</MenuItem>
+                        <MenuItem value="debit">Debit</MenuItem>
+                      </TextField>
+                    </Grid>
+                    <Grid size={{ xs: 12, sm: 2 }}>
+                      <TextField
+                        fullWidth
+                        type="number"
+                        inputProps={{ min: 0 }}
+                        label="Amount"
+                        value={payment.amount}
+                        onChange={(e) => onPaymentChange(index, 'amount', e.target.value)}
+                      />
+                    </Grid>
+                    <Grid size={{ xs: 12, sm: 2 }}>
+                      <TextField
+                        fullWidth
+                        type="date"
+                        label="Date"
+                        value={payment.paidAt}
+                        onChange={(e) => onPaymentChange(index, 'paidAt', e.target.value)}
+                        slotProps={{ inputLabel: { shrink: true } }}
+                      />
+                    </Grid>
+                    <Grid size={{ xs: 12, sm: 3 }}>
+                      <TextField
+                        fullWidth
+                        label="Note"
+                        value={payment.note}
+                        onChange={(e) => onPaymentChange(index, 'note', e.target.value)}
+                        placeholder="e.g. Rooms, vehicle"
+                      />
+                    </Grid>
+                    <Grid size={{ xs: 12, sm: 2 }}>
+                      <Typography variant="caption" color="text.secondary" display="block">
+                        Net cash
+                      </Typography>
+                      <Typography variant="body2" fontWeight={700}>
+                        {runningRow ? formatCurrency(runningRow.runningCash) : '-'}
+                      </Typography>
+                    </Grid>
+                    <Grid size={{ xs: 12, sm: 1 }}>
+                      {!readOnly && payments.length > 1 && (
+                        <IconButton
+                          color="error"
+                          onClick={() => onRemovePayment(index)}
+                          aria-label="Remove entry"
+                        >
+                          <i className="ri-delete-bin-line" />
+                        </IconButton>
+                      )}
+                    </Grid>
                   </Grid>
-                </Grid>
-              </Card>
-            ))}
+                </Card>
+              );
+            })}
           </Stack>
 
-          <Grid container spacing={2} sx={{ mb: 3 }}>
-            <Grid size={{ xs: 12, md: 6 }}>
-              <Alert severity="info" icon={false} sx={{ py: 1.5 }}>
-                <Typography variant="caption" color="text.secondary">
-                  Total paid
-                </Typography>
-                <Typography variant="h6" fontWeight={700}>
-                  {formatCurrency(totalPaid)}
-                </Typography>
-              </Alert>
-            </Grid>
-            <Grid size={{ xs: 12, md: 6 }}>
-              <Alert severity={balance > 0 ? 'warning' : 'success'} icon={false} sx={{ py: 1.5 }}>
-                <Typography variant="caption" color="text.secondary">
-                  Balance due
-                </Typography>
-                <Typography variant="h6" fontWeight={700}>
-                  {formatCurrency(balance)}
-                </Typography>
-              </Alert>
-            </Grid>
-          </Grid>
-
-          <Typography variant="subtitle1" fontWeight={700} sx={{ mb: 1 }}>
-            Financials
-          </Typography>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            Profit = package price − total expenses.
-          </Typography>
-
-          <Grid container spacing={2}>
-            <Grid size={{ xs: 12, md: 6 }}>
-              <TextField
-                fullWidth
-                type="number"
-                inputProps={{ min: 0 }}
-                label="Total expenses (PKR)"
-                name="totalExpenses"
-                value={bookingForm.totalExpenses}
-                onChange={fieldChange(onChange)}
-              />
-            </Grid>
-            <Grid size={{ xs: 12, md: 6 }}>
-              <TextField
-                fullWidth
-                type="number"
-                label="Total profit (PKR)"
-                name="totalProfit"
-                value={bookingForm.totalProfit}
-                onChange={fieldChange(onChange)}
-              />
-            </Grid>
-          </Grid>
-
-          {(bookingForm.totalProfit !== '' || bookingForm.totalExpenses !== '') && (
-            <Box sx={{ mt: 2 }}>
-              <ProfitShareBreakdown booking={bookingForm} compact />
+          {showProfitPreview && (
+            <Box sx={{ mb: 3 }}>
+              <ProfitShareBreakdown booking={profitPreviewBooking} compact />
             </Box>
           )}
 
-          <Grid container spacing={2} sx={{ mt: 2 }}>
+          <Grid container spacing={2}>
             <Grid size={{ xs: 12, md: 6 }}>
               <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 1 }}>
                 Status (auto from dates)

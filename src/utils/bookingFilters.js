@@ -48,3 +48,29 @@ export function getTravelMonthOptions(bookings) {
   }
   return Array.from(keys).sort((a, b) => b.localeCompare(a));
 }
+
+export function filterBookingsByTravelDateRange(bookings, startDate, endDate) {
+  if (!startDate && !endDate) {
+    return bookings;
+  }
+
+  return bookings.filter((booking) => {
+    const travelStart = booking.travelStartDate || '';
+    const travelEnd = booking.travelEndDate || travelStart;
+    if (!travelStart) return false;
+
+    if (startDate && travelEnd < startDate) return false;
+    if (endDate && travelStart > endDate) return false;
+    return true;
+  });
+}
+
+export function filterBookingsByBookedBy(bookings, bookedByFilter) {
+  if (!bookedByFilter || bookedByFilter === 'all') {
+    return bookings;
+  }
+
+  return bookings.filter(
+    (booking) => (booking.bookedBy || '').trim() === bookedByFilter
+  );
+}

@@ -2,6 +2,7 @@ export type UserRole = 'admin' | 'viewer';
 
 export type BookingPayment = {
   id: string;
+  type?: 'credit' | 'debit';
   amount: number;
   paidAt: string;
   note?: string;

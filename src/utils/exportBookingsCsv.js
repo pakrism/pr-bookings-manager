@@ -1,7 +1,7 @@
 import { resolveBookingStatus } from './bookingStatus';
 import { getBookingBalance } from './bookingBalance';
 import { getBookingProfit } from './bookingFinancials';
-import { getTotalPaid } from './payments';
+import { getTotalPaid, getTotalDebits, getNetCashPosition } from './payments';
 import { normalizeBookingTourType } from './tourType';
 import { getProfitDistribution } from './partnerProfit';
 import { getProfitPercentage } from './revenueMetrics';
@@ -34,6 +34,8 @@ export function downloadBookingsCsv(bookings, filename = 'pakrism-bookings.csv')
     'Tour Type',
     'Price',
     'Total Paid',
+    'Total Expenses',
+    'Net Cash',
     'Balance',
     'Profit',
     'Profit %',
@@ -60,6 +62,8 @@ export function downloadBookingsCsv(bookings, filename = 'pakrism-bookings.csv')
       normalizeBookingTourType(booking.type),
       booking.packagePrice,
       getTotalPaid(booking),
+      getTotalDebits(booking) || booking.totalExpenses || '',
+      getNetCashPosition(booking),
       getBookingBalance(booking),
       profit ?? '',
       getProfitPercentage(profit, booking.packagePrice)?.toFixed(1) ?? '',

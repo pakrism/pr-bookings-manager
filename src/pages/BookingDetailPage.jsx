@@ -6,8 +6,8 @@ import Typography from '@mui/material/Typography';
 import Avatar from '@mui/material/Avatar';
 import IconButton from '@mui/material/IconButton';
 import Divider from '@mui/material/Divider';
-import MenuItem from '@mui/material/MenuItem';
-import TextField from '@mui/material/TextField';
+import Stack from '@mui/material/Stack';
+import Chip from '@mui/material/Chip';
 
 import { useAppData } from '../context/AppDataContext';
 import { useBookingFromParams } from '../context/AppDataProvider';
@@ -16,10 +16,14 @@ import BookingStatusChip from '../components/common/BookingStatusChip';
 import { DarkButton, OutlineButton } from '../components/common/BrandButton';
 import ProfitShareBreakdown from '../components/profit/ProfitShareBreakdown';
 import { formatCurrency, formatDateForDisplay, getPackageImage } from '../utils/helpers';
-import { getBookingProfit, hasBookingFinancials } from '../utils/bookingFinancials';
+import { getBookingProfit, getBookingExpenses, hasBookingFinancials } from '../utils/bookingFinancials';
 import { getBookingBalance } from '../utils/bookingBalance';
 import { resolveBookingStatus } from '../utils/bookingStatus';
-import { getPaymentsFromBooking, getTotalPaid } from '../utils/payments';
+import {
+  getLedgerWithRunningCash,
+  getTotalPaid,
+  getNetCashPosition,
+} from '../utils/payments';
 import { generateInvoicePDF } from '../utils/invoice';
 import { formatAuditTime } from '../utils/dashboardMetrics';
 import BookingQuickUpdateDialog from '../components/bookings/BookingQuickUpdateDialog';
@@ -49,6 +53,26 @@ function InfoRow({ label, value }) {
   );
 }
 
+function formatPaxBreakdown(booking) {
+  const adults = Number(booking.adults || 0);
+  const children = Number(booking.children || 0);
+  const infants = Number(booking.infants || 0);
+  const total = adults + children + infants;
+  const parts = [];
+  if (adults) parts.push(`${adults} adult${adults === 1 ? '' : 's'}`);
+  if (children) parts.push(`${children} child${children === 1 ? '' : 'ren'}`);
+  if (infants) parts.push(`${infants} infant${infants === 1 ? '' : 's'}`);
+  return `${total} pax${parts.length ? ` · ${parts.join(', ')}` : ''}`;
+}
+
+function formatGroupType(booking) {
+  if (!booking.groupType) return '-';
+  if (booking.groupType === 'Other' && booking.groupTypeNote) {
+    return `${booking.groupType} (${booking.groupTypeNote})`;
+  }
+  return booking.groupType;
+}
+
 export default function BookingDetailPage() {
   const navigate = useNavigate();
   const booking = useBookingFromParams();
@@ -74,10 +98,12 @@ export default function BookingDetailPage() {
   }
 
   const resolvedStatus = resolveBookingStatus(booking);
-  const payments = getPaymentsFromBooking(booking);
+  const ledgerRows = getLedgerWithRunningCash(booking.payments || []);
   const balance = getBookingBalance(booking);
   const totalPaid = getTotalPaid(booking);
+  const totalExpenses = getBookingExpenses(booking);
   const profit = getBookingProfit(booking);
+  const netCash = getNetCashPosition(booking);
   const pkg = packages.find((p) => p.id === booking.packageTemplateId);
 
   const breadcrumbs = [
@@ -143,7 +169,9 @@ export default function BookingDetailPage() {
             <Divider sx={{ my: 2 }} />
             <InfoRow label="Package price" value={formatCurrency(booking.packagePrice)} />
             <InfoRow label="Travel dates" value={`${formatDateForDisplay(booking.travelStartDate)} → ${formatDateForDisplay(booking.travelEndDate)}`} />
-            <InfoRow label="Persons" value={`${Number(booking.adults || 0) + Number(booking.children || 0) + Number(booking.infants || 0)} pax`} />
+            <InfoRow label="Tour type" value={booking.type || '-'} />
+            <InfoRow label="Persons" value={formatPaxBreakdown(booking)} />
+            <InfoRow label="Group type" value={formatGroupType(booking)} />
             {booking.specialNotes && (
               <Typography variant="body2" sx={{ mt: 2, color: 'text.secondary' }}>
                 {booking.specialNotes}
@@ -202,14 +230,64 @@ export default function BookingDetailPage() {
           </DetailCard>
 
           <DetailCard title="Payment">
-            <InfoRow label="Total" value={formatCurrency(booking.packagePrice)} />
-            <InfoRow label="Paid" value={formatCurrency(totalPaid)} />
-            <InfoRow label="Balance" value={formatCurrency(balance)} />
-            {payments.map((p, i) => (
-              <Typography key={i} variant="caption" display="block" color="text.secondary" sx={{ mt: 0.5 }}>
-                {formatDateForDisplay(p.paidAt)} — {formatCurrency(p.amount)}
-              </Typography>
-            ))}
+            <InfoRow label="Package price" value={formatCurrency(booking.packagePrice)} />
+            <InfoRow label="Total paid" value={formatCurrency(totalPaid)} />
+            <InfoRow label="Balance due" value={formatCurrency(balance)} />
+            {totalExpenses != null && (
+              <InfoRow label="Total expenses" value={formatCurrency(totalExpenses)} />
+            )}
+            {profit != null && (
+              <InfoRow label="Profit" value={formatCurrency(profit)} />
+            )}
+            <InfoRow label="Net cash on hand" value={formatCurrency(netCash)} />
+
+            {ledgerRows.length > 0 && (
+              <Box sx={{ mt: 2 }}>
+                <Typography variant="subtitle2" sx={{ mb: 1 }}>
+                  Ledger
+                </Typography>
+                {ledgerRows.map((entry) => (
+                  <Box
+                    key={entry.id}
+                    sx={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      gap: 1,
+                      py: 0.75,
+                      borderBottom: 1,
+                      borderColor: 'divider',
+                    }}
+                  >
+                    <Box sx={{ minWidth: 0 }}>
+                      <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 0.25 }}>
+                        <Chip
+                          size="small"
+                          label={entry.type === 'credit' ? 'Credit' : 'Debit'}
+                          color={entry.type === 'credit' ? 'success' : 'warning'}
+                          variant="outlined"
+                        />
+                        <Typography variant="caption" color="text.secondary">
+                          {formatDateForDisplay(entry.paidAt)}
+                        </Typography>
+                      </Stack>
+                      <Typography variant="body2">
+                        {entry.note || (entry.type === 'credit' ? 'Client payment' : 'Expense')}
+                      </Typography>
+                    </Box>
+                    <Box sx={{ textAlign: 'right' }}>
+                      <Typography variant="body2" fontWeight={700}>
+                        {entry.type === 'credit' ? '+' : '-'}
+                        {formatCurrency(entry.amount)}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        Net {formatCurrency(entry.runningCash)}
+                      </Typography>
+                    </Box>
+                  </Box>
+                ))}
+              </Box>
+            )}
           </DetailCard>
 
           {hasBookingFinancials(booking) && (

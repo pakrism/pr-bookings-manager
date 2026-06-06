@@ -1,13 +1,21 @@
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { getBookingBalance } from './bookingBalance';
-import { getPaymentsFromBooking, getTotalPaid } from './payments';
+import { getBookingExpenses, getBookingProfit } from './bookingFinancials';
+import {
+  getLedgerWithRunningCash,
+  getTotalPaid,
+  getNetCashPosition,
+} from './payments';
 
 export function generateInvoicePDF(booking) {
   const doc = new jsPDF();
-  const payments = getPaymentsFromBooking(booking);
+  const ledgerRows = getLedgerWithRunningCash(booking.payments || []);
   const totalPaid = getTotalPaid(booking);
   const balance = getBookingBalance(booking);
+  const totalExpenses = getBookingExpenses(booking);
+  const profit = getBookingProfit(booking);
+  const netCash = getNetCashPosition(booking);
 
   doc.setFontSize(14);
   doc.text('Pakrism Travel Platform (Pvt Ltd)', 14, 20);
@@ -35,14 +43,16 @@ export function generateInvoicePDF(booking) {
     ],
   });
 
-  if (payments.length) {
+  if (ledgerRows.length) {
     autoTable(doc, {
       startY: doc.lastAutoTable.finalY + 8,
-      head: [['Payment date', 'Note', 'Amount']],
-      body: payments.map((payment) => [
-        payment.paidAt || '-',
-        payment.note || '-',
-        payment.amount || 0,
+      head: [['Date', 'Type', 'Note', 'Amount', 'Net cash']],
+      body: ledgerRows.map((entry) => [
+        entry.paidAt || '-',
+        entry.type === 'credit' ? 'Credit' : 'Debit',
+        entry.note || '-',
+        entry.amount || 0,
+        entry.runningCash || 0,
       ]),
     });
   }
@@ -51,12 +61,19 @@ export function generateInvoicePDF(booking) {
 
   doc.text(`Total paid: Rs ${totalPaid.toLocaleString()}`, 14, finalY);
   doc.text(`Balance due: Rs ${balance.toLocaleString()}`, 14, finalY + 6);
+  if (totalExpenses != null) {
+    doc.text(`Total expenses: Rs ${totalExpenses.toLocaleString()}`, 14, finalY + 12);
+  }
+  if (profit != null) {
+    doc.text(`Profit: Rs ${profit.toLocaleString()}`, 14, finalY + 18);
+  }
+  doc.text(`Net cash on hand: Rs ${netCash.toLocaleString()}`, 14, finalY + 24);
 
   doc.setFontSize(9);
   doc.text(
     'This serves as a digital receipt. Details are shared via WhatsApp.',
     14,
-    finalY + 18
+    finalY + 36
   );
 
   doc.save(`invoice-${booking.bookingRef || booking.guestName || 'booking'}.pdf`);

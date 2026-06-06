@@ -26,7 +26,7 @@ export const BOOKING_STATUSES = [
 
 export const BOOKING_TOUR_TYPES = ['Group Tour', 'Private Tour'];
 
-export const BOOKED_BY_OPTIONS = ['Zohaib', 'Pervaiz', 'Admin', 'Other'];
+export const BOOKED_BY_OPTIONS = ['Zohaib', 'Pervaiz', 'Bilal Jutt', 'Admin', 'Other'];
 
 export const PARTNERS = ['Zohaib', 'Pervaiz'];
 export const PARTNER_SHARE_COUNT = 2;

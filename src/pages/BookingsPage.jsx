@@ -18,7 +18,7 @@ import { SecondaryButton, OutlineButton } from '../components/common/BrandButton
 import BookingTableHead from '../components/bookings/BookingTableHead';
 import BookingTableRow from '../components/bookings/BookingTableRow';
 import BookingTableToolbar from '../components/bookings/BookingTableToolbar';
-import { prepareBookingsForList } from '../utils/bookingFilters';
+import { prepareBookingsForList, filterBookingsByTravelDateRange, filterBookingsByBookedBy } from '../utils/bookingFilters';
 import { getBookingProfit } from '../utils/bookingFinancials';
 import { resolveBookingStatus } from '../utils/bookingStatus';
 import {
@@ -44,6 +44,8 @@ export default function BookingsPage() {
     setBookingDateStart,
     bookingDateEnd,
     setBookingDateEnd,
+    bookingBookedByFilter,
+    setBookingBookedByFilter,
     isAdmin,
     handleExportBookingsCsv,
     setShowRemindersModal,
@@ -70,14 +72,10 @@ export default function BookingsPage() {
       monthFilter: bookingMonthFilter,
       sortKey: 'departure_desc',
     });
-    if (bookingDateStart) {
-      list = list.filter((b) => (b.travelStartDate || '') >= bookingDateStart);
-    }
-    if (bookingDateEnd) {
-      list = list.filter((b) => (b.travelStartDate || '') <= bookingDateEnd);
-    }
+    list = filterBookingsByTravelDateRange(list, bookingDateStart, bookingDateEnd);
+    list = filterBookingsByBookedBy(list, bookingBookedByFilter);
     return list;
-  }, [bookings, bookingStatusTab, bookingSearch, bookingMonthFilter, bookingDateStart, bookingDateEnd]);
+  }, [bookings, bookingStatusTab, bookingSearch, bookingMonthFilter, bookingDateStart, bookingDateEnd, bookingBookedByFilter]);
 
   const enriched = useMemo(
     () =>
@@ -148,6 +146,8 @@ export default function BookingsPage() {
           dateEnd={bookingDateEnd}
           onDateStartChange={setBookingDateStart}
           onDateEndChange={setBookingDateEnd}
+          bookedByFilter={bookingBookedByFilter}
+          onBookedByChange={setBookingBookedByFilter}
         />
 
         <TableContainer sx={{ overflowX: 'auto' }}>
