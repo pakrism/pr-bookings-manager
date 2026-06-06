@@ -6,6 +6,7 @@ export function useTable(props) {
   const [orderBy, setOrderBy] = useState(props?.defaultOrderBy ?? 'name');
   const [rowsPerPage, setRowsPerPage] = useState(props?.defaultRowsPerPage ?? 10);
   const [order, setOrder] = useState(props?.defaultOrder ?? 'asc');
+  const [selected, setSelected] = useState(props?.defaultSelected ?? []);
 
   const onSort = useCallback(
     (id) => {
@@ -15,6 +16,24 @@ export function useTable(props) {
     },
     [order, orderBy]
   );
+
+  const onSelectRow = useCallback(
+    (inputValue) => {
+      const newSelected = selected.includes(inputValue)
+        ? selected.filter((value) => value !== inputValue)
+        : [...selected, inputValue];
+      setSelected(newSelected);
+    },
+    [selected]
+  );
+
+  const onSelectAllRows = useCallback((checked, inputValue) => {
+    if (checked) {
+      setSelected(inputValue);
+      return;
+    }
+    setSelected([]);
+  }, []);
 
   const onResetPage = useCallback(() => {
     setPage(0);
@@ -42,7 +61,10 @@ export function useTable(props) {
     page,
     orderBy,
     rowsPerPage,
+    selected,
     onSort,
+    onSelectRow,
+    onSelectAllRows,
     onResetPage,
     onChangePage,
     onChangeRowsPerPage,
@@ -51,6 +73,7 @@ export function useTable(props) {
     setDense,
     setOrder,
     setOrderBy,
+    setSelected,
     setRowsPerPage,
   };
 }

@@ -1,6 +1,7 @@
 import TableRow from '@mui/material/TableRow';
 import TableCell from '@mui/material/TableCell';
 import TableSortLabel from '@mui/material/TableSortLabel';
+import Checkbox from '@mui/material/Checkbox';
 
 const HEAD_CELLS = [
   { id: 'bookingRef', label: 'Ref', width: 90 },
@@ -13,9 +14,23 @@ const HEAD_CELLS = [
   { id: 'actions', label: '', width: 56, sortable: false },
 ];
 
-export default function BookingTableHead({ order, orderBy, onSort }) {
+export default function BookingTableHead({
+  order,
+  orderBy,
+  onSort,
+  rowCount = 0,
+  numSelected = 0,
+  onSelectAll,
+}) {
   return (
     <TableRow>
+      <TableCell padding="checkbox">
+        <Checkbox
+          indeterminate={numSelected > 0 && numSelected < rowCount}
+          checked={rowCount > 0 && numSelected === rowCount}
+          onChange={(e) => onSelectAll?.(e.target.checked)}
+        />
+      </TableCell>
       {HEAD_CELLS.map((head) => (
         <TableCell
           key={head.id}

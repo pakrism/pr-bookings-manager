@@ -1,6 +1,16 @@
 import { resolveBookingStatus } from './bookingStatus';
-import { toMonthKey } from './datePeriods';
+import { toMonthKey, getPeriodRange, isDateInRange } from './datePeriods';
 import { sortBookings } from './bookingSort';
+
+export const BOOKING_DATE_PRESETS = [
+  { value: 'all_dates', label: 'All dates' },
+  { value: 'this_month', label: 'This month' },
+  { value: 'last_month', label: 'Last month' },
+  { value: 'last_3_months', label: 'Last 3 months' },
+  { value: 'ytd', label: 'Year to date' },
+  { value: 'pick_month', label: 'Pick month' },
+  { value: 'custom', label: 'Custom range' },
+];
 
 export function filterBookings(bookings, searchTerm, statusFilter) {
   const query = searchTerm.trim().toLowerCase();
@@ -33,11 +43,10 @@ export function filterBookingsByTravelMonth(bookings, monthFilter) {
 
 export function prepareBookingsForList(
   bookings,
-  { searchTerm, statusFilter, monthFilter, sortKey }
+  { searchTerm, statusFilter, sortKey }
 ) {
   const filtered = filterBookings(bookings, searchTerm, statusFilter);
-  const byMonth = filterBookingsByTravelMonth(filtered, monthFilter);
-  return sortBookings(byMonth, sortKey);
+  return sortBookings(filtered, sortKey);
 }
 
 export function getTravelMonthOptions(bookings) {
@@ -49,20 +58,43 @@ export function getTravelMonthOptions(bookings) {
   return Array.from(keys).sort((a, b) => b.localeCompare(a));
 }
 
-export function filterBookingsByTravelDateRange(bookings, startDate, endDate) {
-  if (!startDate && !endDate) {
+export function filterBookingsByTravelPreset(
+  bookings,
+  { preset = 'all_dates', monthKey = '', customStart = '', customEnd = '' } = {}
+) {
+  if (!preset || preset === 'all_dates') {
     return bookings;
   }
 
-  return bookings.filter((booking) => {
-    const travelStart = booking.travelStartDate || '';
-    const travelEnd = booking.travelEndDate || travelStart;
-    if (!travelStart) return false;
+  if (preset === 'pick_month') {
+    if (!monthKey) return bookings;
+    return bookings.filter(
+      (booking) => toMonthKey(booking.travelStartDate) === monthKey
+    );
+  }
 
-    if (startDate && travelEnd < startDate) return false;
-    if (endDate && travelStart > endDate) return false;
-    return true;
-  });
+  const range = getPeriodRange(preset, customStart, customEnd);
+  if (!range) {
+    return bookings;
+  }
+
+  return bookings.filter((booking) =>
+    isDateInRange(booking.travelStartDate, range)
+  );
+}
+
+export function getTravelPresetLabel(preset, monthKey, customStart, customEnd) {
+  if (preset === 'all_dates' || !preset) return 'All departure dates';
+  if (preset === 'pick_month' && monthKey) {
+    const [year, month] = monthKey.split('-').map(Number);
+    const date = new Date(year, month - 1, 1);
+    return `Departures in ${date.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })}`;
+  }
+  if (preset === 'custom' && customStart && customEnd) {
+    return `Departures from ${customStart} to ${customEnd}`;
+  }
+  const option = BOOKING_DATE_PRESETS.find((item) => item.value === preset);
+  return option ? `${option.label} departures` : 'Filtered departures';
 }
 
 export function filterBookingsByBookedBy(bookings, bookedByFilter) {

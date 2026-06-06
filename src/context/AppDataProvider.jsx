@@ -22,7 +22,8 @@ import {
   buildBookingAuditSummary,
 } from '../utils/auditLog';
 import { downloadBookingsCsv } from '../utils/exportBookingsCsv';
-import { prepareBookingsForList } from '../utils/bookingFilters';
+import { prepareBookingsForList, filterBookingsByTravelPreset, filterBookingsByBookedBy } from '../utils/bookingFilters';
+import { filterBookingsByStatusTab } from '../utils/bookingStatusCounts';
 import { normalizeProfitSharePaid, normalizePartnerPoolPaid } from '../utils/partnerProfit';
 import {
   subscribeToPackages,
@@ -48,9 +49,10 @@ export function AppDataProvider({ authUser, userProfile, children }) {
   const [editingBookingId, setEditingBookingId] = useState(null);
   const [bookingSearch, setBookingSearch] = useState('');
   const [bookingStatusTab, setBookingStatusTab] = useState('All');
-  const [bookingMonthFilter, setBookingMonthFilter] = useState('All months');
-  const [bookingDateStart, setBookingDateStart] = useState('');
-  const [bookingDateEnd, setBookingDateEnd] = useState('');
+  const [bookingDatePreset, setBookingDatePreset] = useState('all_dates');
+  const [bookingTravelMonth, setBookingTravelMonth] = useState('');
+  const [bookingCustomStart, setBookingCustomStart] = useState('');
+  const [bookingCustomEnd, setBookingCustomEnd] = useState('');
   const [bookingBookedByFilter, setBookingBookedByFilter] = useState('all');
   const [isSavingBooking, setIsSavingBooking] = useState(false);
   const [toast, setToast] = useState(null);
@@ -519,13 +521,20 @@ export function AppDataProvider({ authUser, userProfile, children }) {
   }
 
   function handleExportBookingsCsv() {
-    const filtered = prepareBookingsForList(bookings, {
+    let list = filterBookingsByStatusTab(bookings, bookingStatusTab);
+    list = prepareBookingsForList(list, {
       searchTerm: bookingSearch,
-      statusFilter: bookingStatusTab === 'All' ? 'All Status' : bookingStatusTab,
-      monthFilter: bookingMonthFilter,
+      statusFilter: 'All Status',
       sortKey: 'departure_desc',
     });
-    downloadBookingsCsv(filtered);
+    list = filterBookingsByTravelPreset(list, {
+      preset: bookingDatePreset,
+      monthKey: bookingTravelMonth,
+      customStart: bookingCustomStart,
+      customEnd: bookingCustomEnd,
+    });
+    list = filterBookingsByBookedBy(list, bookingBookedByFilter);
+    downloadBookingsCsv(list);
     showToast('Bookings CSV downloaded.');
   }
 
@@ -552,12 +561,14 @@ export function AppDataProvider({ authUser, userProfile, children }) {
     setBookingSearch,
     bookingStatusTab,
     setBookingStatusTab,
-    bookingMonthFilter,
-    setBookingMonthFilter,
-    bookingDateStart,
-    setBookingDateStart,
-    bookingDateEnd,
-    setBookingDateEnd,
+    bookingDatePreset,
+    setBookingDatePreset,
+    bookingTravelMonth,
+    setBookingTravelMonth,
+    bookingCustomStart,
+    setBookingCustomStart,
+    bookingCustomEnd,
+    setBookingCustomEnd,
     bookingBookedByFilter,
     setBookingBookedByFilter,
     isSavingBooking,

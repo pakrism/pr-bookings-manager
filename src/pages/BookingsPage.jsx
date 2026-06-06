@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
@@ -18,7 +18,15 @@ import { SecondaryButton, OutlineButton } from '../components/common/BrandButton
 import BookingTableHead from '../components/bookings/BookingTableHead';
 import BookingTableRow from '../components/bookings/BookingTableRow';
 import BookingTableToolbar from '../components/bookings/BookingTableToolbar';
-import { prepareBookingsForList, filterBookingsByTravelDateRange, filterBookingsByBookedBy } from '../utils/bookingFilters';
+import BookingSelectionBar from '../components/bookings/BookingSelectionBar';
+import BookingBulkEditDialog from '../components/bookings/BookingBulkEditDialog';
+import {
+  prepareBookingsForList,
+  filterBookingsByTravelPreset,
+  filterBookingsByBookedBy,
+} from '../utils/bookingFilters';
+import { computeSelectionMetrics } from '../utils/bookingSelectionMetrics';
+import { downloadBookingsCsv } from '../utils/exportBookingsCsv';
 import { getBookingProfit } from '../utils/bookingFinancials';
 import { resolveBookingStatus } from '../utils/bookingStatus';
 import {
@@ -26,8 +34,9 @@ import {
   getBookingStatusTabs,
 } from '../utils/bookingStatusCounts';
 import { applySort, getComparator } from '../utils/tableSort';
-import { useTable, emptyRows } from '../hooks/useTable';
+import { useTable } from '../hooks/useTable';
 import BookingQuickUpdateDialog from '../components/bookings/BookingQuickUpdateDialog';
+import { removeBooking } from '../lib/firestore';
 import { useAppData } from '../context/AppDataContext';
 
 export default function BookingsPage() {
@@ -38,12 +47,14 @@ export default function BookingsPage() {
     setBookingSearch,
     bookingStatusTab,
     setBookingStatusTab,
-    bookingMonthFilter,
-    setBookingMonthFilter,
-    bookingDateStart,
-    setBookingDateStart,
-    bookingDateEnd,
-    setBookingDateEnd,
+    bookingDatePreset,
+    setBookingDatePreset,
+    bookingTravelMonth,
+    setBookingTravelMonth,
+    bookingCustomStart,
+    setBookingCustomStart,
+    bookingCustomEnd,
+    setBookingCustomEnd,
     bookingBookedByFilter,
     setBookingBookedByFilter,
     isAdmin,
@@ -54,7 +65,11 @@ export default function BookingsPage() {
     requestDeleteBooking,
     setQuickUpdateBooking,
     quickUpdateBooking,
+    setConfirmDialog,
+    showToast,
   } = useAppData();
+
+  const [bulkEditOpen, setBulkEditOpen] = useState(false);
 
   const table = useTable({
     defaultOrderBy: 'travelStartDate',
@@ -69,13 +84,26 @@ export default function BookingsPage() {
     list = prepareBookingsForList(list, {
       searchTerm: bookingSearch,
       statusFilter: 'All Status',
-      monthFilter: bookingMonthFilter,
       sortKey: 'departure_desc',
     });
-    list = filterBookingsByTravelDateRange(list, bookingDateStart, bookingDateEnd);
+    list = filterBookingsByTravelPreset(list, {
+      preset: bookingDatePreset,
+      monthKey: bookingTravelMonth,
+      customStart: bookingCustomStart,
+      customEnd: bookingCustomEnd,
+    });
     list = filterBookingsByBookedBy(list, bookingBookedByFilter);
     return list;
-  }, [bookings, bookingStatusTab, bookingSearch, bookingMonthFilter, bookingDateStart, bookingDateEnd, bookingBookedByFilter]);
+  }, [
+    bookings,
+    bookingStatusTab,
+    bookingSearch,
+    bookingDatePreset,
+    bookingTravelMonth,
+    bookingCustomStart,
+    bookingCustomEnd,
+    bookingBookedByFilter,
+  ]);
 
   const enriched = useMemo(
     () =>
@@ -96,6 +124,53 @@ export default function BookingsPage() {
     table.page * table.rowsPerPage,
     table.page * table.rowsPerPage + table.rowsPerPage
   );
+
+  const selectedBookings = useMemo(
+    () => sorted.filter((booking) => table.selected.includes(booking.id)),
+    [sorted, table.selected]
+  );
+
+  const selectionMetrics = useMemo(
+    () => computeSelectionMetrics(selectedBookings),
+    [selectedBookings]
+  );
+
+  function handleDatePresetChange(value) {
+    setBookingDatePreset(value);
+    if (value !== 'pick_month') {
+      setBookingTravelMonth('');
+    }
+    if (value !== 'custom') {
+      setBookingCustomStart('');
+      setBookingCustomEnd('');
+    }
+  }
+
+  function handleExportSelected() {
+    downloadBookingsCsv(selectedBookings);
+    showToast('Selected bookings exported.');
+  }
+
+  function handleDeleteSelected() {
+    if (!selectedBookings.length) return;
+
+    setConfirmDialog({
+      title: 'Delete selected bookings',
+      message: `Delete ${selectedBookings.length} booking${selectedBookings.length === 1 ? '' : 's'}? This cannot be undone.`,
+      onConfirm: async () => {
+        try {
+          for (const booking of selectedBookings) {
+            await removeBooking(booking.id);
+          }
+          table.setSelected([]);
+          showToast(`${selectedBookings.length} booking${selectedBookings.length === 1 ? '' : 's'} deleted.`);
+        } catch (error) {
+          showToast('Failed to delete bookings.', 'error');
+        }
+        setConfirmDialog(null);
+      },
+    });
+  }
 
   if (!bookings.length) {
     return (
@@ -140,15 +215,28 @@ export default function BookingsPage() {
           bookings={bookings}
           searchValue={bookingSearch}
           onSearchChange={setBookingSearch}
-          monthFilter={bookingMonthFilter}
-          onMonthChange={setBookingMonthFilter}
-          dateStart={bookingDateStart}
-          dateEnd={bookingDateEnd}
-          onDateStartChange={setBookingDateStart}
-          onDateEndChange={setBookingDateEnd}
+          datePreset={bookingDatePreset}
+          onDatePresetChange={handleDatePresetChange}
+          travelMonth={bookingTravelMonth}
+          onTravelMonthChange={setBookingTravelMonth}
+          customStart={bookingCustomStart}
+          customEnd={bookingCustomEnd}
+          onCustomStartChange={setBookingCustomStart}
+          onCustomEndChange={setBookingCustomEnd}
           bookedByFilter={bookingBookedByFilter}
           onBookedByChange={setBookingBookedByFilter}
         />
+
+        {table.selected.length > 0 && (
+          <BookingSelectionBar
+            metrics={selectionMetrics}
+            canEdit={isAdmin}
+            onClear={() => table.setSelected([])}
+            onBulkEdit={() => setBulkEditOpen(true)}
+            onExportSelected={handleExportSelected}
+            onDeleteSelected={handleDeleteSelected}
+          />
+        )}
 
         <TableContainer sx={{ overflowX: 'auto' }}>
           <Table size={table.dense ? 'small' : 'medium'}>
@@ -157,6 +245,14 @@ export default function BookingsPage() {
                 order={table.order}
                 orderBy={table.orderBy}
                 onSort={table.onSort}
+                rowCount={sorted.length}
+                numSelected={selectedBookings.length}
+                onSelectAll={(checked) =>
+                  table.onSelectAllRows(
+                    checked,
+                    sorted.map((row) => row.id)
+                  )
+                }
               />
             </TableHead>
             <TableBody>
@@ -164,6 +260,8 @@ export default function BookingsPage() {
                 <BookingTableRow
                   key={row.id}
                   row={row}
+                  selected={table.selected.includes(row.id)}
+                  onSelectRow={table.onSelectRow}
                   onView={navigateToBooking}
                   onEdit={navigateToEditBooking}
                   onDelete={requestDeleteBooking}
@@ -201,6 +299,15 @@ export default function BookingsPage() {
           booking={quickUpdateBooking}
           open
           onClose={() => setQuickUpdateBooking(null)}
+        />
+      )}
+
+      {bulkEditOpen && (
+        <BookingBulkEditDialog
+          bookings={selectedBookings}
+          open
+          onClose={() => setBulkEditOpen(false)}
+          onComplete={() => table.setSelected([])}
         />
       )}
     </Box>
