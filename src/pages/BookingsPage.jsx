@@ -157,11 +157,6 @@ export default function BookingsPage() {
                 order={table.order}
                 orderBy={table.orderBy}
                 onSort={table.onSort}
-                rowCount={sorted.length}
-                numSelected={table.selected.length}
-                onSelectAll={(checked) =>
-                  table.onSelectAllRows(checked, paginated.map((row) => row.id))
-                }
               />
             </TableHead>
             <TableBody>
@@ -169,8 +164,6 @@ export default function BookingsPage() {
                 <BookingTableRow
                   key={row.id}
                   row={row}
-                  selected={table.selected.includes(row.id)}
-                  onSelectRow={table.onSelectRow}
                   onView={navigateToBooking}
                   onEdit={navigateToEditBooking}
                   onDelete={requestDeleteBooking}

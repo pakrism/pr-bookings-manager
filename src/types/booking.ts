@@ -17,6 +17,11 @@ export type BookingAuditEntry = {
 
 export type ProfitSharePaid = Record<string, boolean>;
 
+export type PartnerPoolPaid = {
+  zohaib?: boolean;
+  pervaiz?: boolean;
+};
+
 export type Booking = {
   id?: string;
   bookingRef?: string;
@@ -45,6 +50,7 @@ export type Booking = {
   totalExpenses?: number | null;
   totalProfit?: number | null;
   profitSharePaid?: ProfitSharePaid;
+  partnerPoolPaid?: PartnerPoolPaid;
   specialNotes?: string;
   bookingStatus?: string;
   bookedBy?: string;

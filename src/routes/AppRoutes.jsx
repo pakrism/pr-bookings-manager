@@ -23,6 +23,7 @@ function AppShell() {
     toast,
     navigateToBooking,
     handleToggleProfitSharePaid,
+    handleTogglePartnerPoolPaid,
     isAdmin,
     showToast,
   } = useAppData();
@@ -49,6 +50,7 @@ function AppShell() {
               onExportToast={() => showToast('Revenue CSV downloaded.')}
               canEdit={isAdmin}
               onToggleProfitSharePaid={handleToggleProfitSharePaid}
+              onTogglePartnerPoolPaid={handleTogglePartnerPoolPaid}
             />
           }
         />

@@ -4,6 +4,7 @@ import Box from '@mui/material/Box';
 import { useAppData } from '../context/AppDataContext';
 import { useBookingFromParams } from '../context/AppDataProvider';
 import CustomBreadcrumbs from '../components/ui/CustomBreadcrumbs';
+import PageHeader from '../components/ui/PageHeader';
 import BookingForm from '../components/bookings/BookingForm';
 
 export default function BookingFormPage() {
@@ -43,11 +44,16 @@ export default function BookingFormPage() {
     { name: isEdit ? booking?.bookingRef || 'Edit' : 'New' },
   ];
 
+  const title = isEdit ? `Edit ${booking?.bookingRef || 'booking'}` : 'New booking';
+  const subtitle = isEdit
+    ? 'Update guest, travel, payment, and profit details'
+    : 'Add guest and tour booking details';
+
   return (
     <Box>
       <CustomBreadcrumbs links={breadcrumbs} />
+      <PageHeader title={title} subtitle={subtitle} />
       <BookingForm
-        variant="page"
         bookingForm={bookingForm}
         editingBookingId={editingBookingId}
         packages={packages}

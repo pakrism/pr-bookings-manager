@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { Link as RouterLink } from 'react-router-dom';
 import TableRow from '@mui/material/TableRow';
 import TableCell from '@mui/material/TableCell';
-import Checkbox from '@mui/material/Checkbox';
 import Avatar from '@mui/material/Avatar';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
@@ -26,8 +25,6 @@ function getInitials(name) {
 
 export default function BookingTableRow({
   row,
-  selected,
-  onSelectRow,
   onView,
   onEdit,
   onDelete,
@@ -46,10 +43,7 @@ export default function BookingTableRow({
     : null;
 
   return (
-    <TableRow hover selected={selected} sx={{ cursor: 'pointer' }} onClick={() => onView?.(row)}>
-      <TableCell padding="checkbox" onClick={(e) => e.stopPropagation()}>
-        <Checkbox checked={selected} onChange={() => onSelectRow(row.id)} />
-      </TableCell>
+    <TableRow hover sx={{ cursor: 'pointer' }} onClick={() => onView?.(row)}>
       <TableCell onClick={(e) => e.stopPropagation()}>
         <Link
           component={RouterLink}

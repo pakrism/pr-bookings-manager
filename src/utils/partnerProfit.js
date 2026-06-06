@@ -27,6 +27,23 @@ export function normalizeProfitSharePaid(stored) {
   return { ...defaults, ...stored };
 }
 
+export function buildDefaultPartnerPoolPaid() {
+  return { zohaib: false, pervaiz: false };
+}
+
+export function normalizePartnerPoolPaid(stored) {
+  const defaults = buildDefaultPartnerPoolPaid();
+  if (!stored || typeof stored !== 'object') {
+    return defaults;
+  }
+  return { ...defaults, ...stored };
+}
+
+export function isPartnerPoolPaid(booking, poolId) {
+  const paid = normalizePartnerPoolPaid(booking?.partnerPoolPaid);
+  return Boolean(paid[poolId]);
+}
+
 export function isProfitSharePaid(booking, shareKey) {
   const paid = normalizeProfitSharePaid(booking?.profitSharePaid);
   return Boolean(paid[shareKey]);
@@ -164,6 +181,37 @@ export function getPoolPaidSummary(recipientTotals, poolId) {
     }),
     { paidTotal: 0, unpaidTotal: 0 }
   );
+}
+
+export function getPartnerPoolTotals(bookings) {
+  const totals = {};
+  for (const poolId of POOL_IDS) {
+    totals[poolId] = {
+      total: 0,
+      paidTotal: 0,
+      unpaidTotal: 0,
+      paidCount: 0,
+      unpaidCount: 0,
+    };
+  }
+
+  for (const booking of bookings) {
+    for (const poolId of POOL_IDS) {
+      const amount = getProfitPoolAmount(booking, poolId);
+      if (amount == null) continue;
+      const entry = totals[poolId];
+      entry.total += amount;
+      if (isPartnerPoolPaid(booking, poolId)) {
+        entry.paidTotal += amount;
+        entry.paidCount += 1;
+      } else {
+        entry.unpaidTotal += amount;
+        entry.unpaidCount += 1;
+      }
+    }
+  }
+
+  return totals;
 }
 
 export { getAllRecipientConfigs, getShareKey };

@@ -5,6 +5,8 @@ import {
   getRecipientTotals,
   getPoolTotals,
   getProfitDistribution,
+  getPartnerPoolTotals,
+  isPartnerPoolPaid,
 } from './partnerProfit';
 import {
   toMonthKey,
@@ -75,14 +77,48 @@ export function filterBookingsByRevenuePeriod(
   );
 }
 
-export function computeRevenueMetrics(bookings, preset, customStart, customEnd) {
-  const range = preset === 'all_time' ? null : getPeriodRange(preset, customStart, customEnd);
-  const inPeriod = filterBookingsByRevenuePeriod(
+export function filterBookingsForFinance(bookings, filters = {}) {
+  const {
+    status = 'all',
+    bookedBy = 'all',
+    payoutFilter = 'all',
+  } = filters;
+
+  return bookings.filter((booking) => {
+    if (status !== 'all') {
+      const resolved = resolveBookingStatus(booking);
+      if (resolved !== status) return false;
+    }
+
+    if (bookedBy !== 'all') {
+      const value = (booking.bookedBy || '').trim();
+      if (value !== bookedBy) return false;
+    }
+
+    if (payoutFilter === 'partner_unpaid') {
+      const zohaibUnpaid = !isPartnerPoolPaid(booking, 'zohaib');
+      const pervaizUnpaid = !isPartnerPoolPaid(booking, 'pervaiz');
+      if (!zohaibUnpaid && !pervaizUnpaid) return false;
+    }
+
+    if (payoutFilter === 'recipient_unpaid') {
+      const distribution = getProfitDistribution(booking);
+      if (!distribution.some((row) => !row.paid)) return false;
+    }
+
+    return true;
+  });
+}
+
+export function computeRevenueMetrics(bookings, preset, customStart, customEnd, filters = {}) {
+  const periodBookings = filterBookingsByRevenuePeriod(
     bookings,
     preset,
     customStart,
     customEnd
   );
+  const inPeriod = filterBookingsForFinance(periodBookings, filters);
+  const range = preset === 'all_time' ? null : getPeriodRange(preset, customStart, customEnd);
 
   const grossRevenue = inPeriod.reduce(
     (sum, b) => sum + Number(b.packagePrice || 0),
@@ -112,6 +148,7 @@ export function computeRevenueMetrics(bookings, preset, customStart, customEnd) 
 
   const poolTotals = getPoolTotals(inPeriod);
   const recipientTotals = getRecipientTotals(inPeriod);
+  const partnerPoolTotals = getPartnerPoolTotals(inPeriod);
 
   return {
     bookingCount: inPeriod.length,
@@ -123,6 +160,7 @@ export function computeRevenueMetrics(bookings, preset, customStart, customEnd) 
     profitPercentage,
     poolTotals,
     recipientTotals,
+    partnerPoolTotals,
     bookings: inPeriod,
   };
 }
@@ -159,5 +197,9 @@ export function getRevenueTableRow(booking, range) {
     profitPercentage: getProfitPercentage(profit, revenue),
     status: resolveBookingStatus(booking),
     distribution: getProfitDistribution(booking),
+    partnerPoolPaid: {
+      zohaib: isPartnerPoolPaid(booking, 'zohaib'),
+      pervaiz: isPartnerPoolPaid(booking, 'pervaiz'),
+    },
   };
 }

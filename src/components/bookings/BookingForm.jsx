@@ -1,4 +1,15 @@
-import { useEffect } from 'react';
+import Box from '@mui/material/Box';
+import Grid from '@mui/material/Grid';
+import Stack from '@mui/material/Stack';
+import TextField from '@mui/material/TextField';
+import MenuItem from '@mui/material/MenuItem';
+import Typography from '@mui/material/Typography';
+import Alert from '@mui/material/Alert';
+import Card from '@mui/material/Card';
+import IconButton from '@mui/material/IconButton';
+import Chip from '@mui/material/Chip';
+import { alpha } from '@mui/material/styles';
+
 import {
   BOOKED_BY_OPTIONS,
   BOOKING_TOUR_TYPES,
@@ -8,6 +19,7 @@ import {
 } from '../../data/constants';
 import { formatCurrency } from '../../utils/helpers';
 import BookingStatusChip from '../common/BookingStatusChip';
+import FormSection from '../ui/FormSection';
 import {
   SecondaryButton,
   OutlineButton,
@@ -16,6 +28,10 @@ import {
 import { resolveFormBookingStatus } from '../../utils/bookingStatus';
 import { computeRemainingAmount, getTotalPaid } from '../../utils/payments';
 import ProfitShareBreakdown from '../profit/ProfitShareBreakdown';
+
+function fieldChange(onChange) {
+  return (event) => onChange(event);
+}
 
 function BookingForm({
   bookingForm,
@@ -32,25 +48,7 @@ function BookingForm({
   onClose,
   isSubmitting = false,
   readOnly = false,
-  variant = 'modal',
 }) {
-  useEffect(() => {
-    function handleEsc(event) {
-      if (event.key === 'Escape' && !isSubmitting) {
-        onClose();
-      }
-    }
-
-    window.addEventListener('keydown', handleEsc);
-    return () => window.removeEventListener('keydown', handleEsc);
-  }, [onClose, isSubmitting]);
-
-  function handleBackdropClick(event) {
-    if (event.target === event.currentTarget && !isSubmitting) {
-      onClose();
-    }
-  }
-
   const totalPersons =
     Number(bookingForm.adults || 0) +
     Number(bookingForm.children || 0) +
@@ -64,484 +62,456 @@ function BookingForm({
     autoStatus
   );
 
-  const payments = bookingForm.payments?.length
-    ? bookingForm.payments
-    : [];
-
-  const formContent = (
-    <form onSubmit={onSubmit}>
-      <fieldset disabled={readOnly || isSubmitting}>
-              <div className="form-section">
-                <div className="form-section-title">👤 Guest & Tour</div>
-
-                <div className="form-field">
-                  <label>Guest Name *</label>
-                  <input
-                    className="form-input"
-                    type="text"
-                    name="guestName"
-                    value={bookingForm.guestName}
-                    onChange={onChange}
-                    placeholder="Full name of the guest"
-                  />
-                </div>
-
-                <div className="section-block">
-                  <div className="form-grid-2">
-                    <div className="form-field">
-                      <label>WhatsApp Number</label>
-                      <input
-                        className="form-input"
-                        type="text"
-                        name="whatsappNumber"
-                        value={bookingForm.whatsappNumber}
-                        onChange={onChange}
-                        placeholder="+92 3xx xxxxxxx"
-                      />
-                    </div>
-
-                    <div className="form-field">
-                      <label>Package *</label>
-                      <select
-                        className="form-select"
-                        name="packageTemplateId"
-                        value={bookingForm.packageTemplateId}
-                        onChange={onPackageChange}
-                      >
-                        <option value="">Select package</option>
-                        {packages.map((item) => (
-                          <option key={item.id} value={item.id}>
-                            {item.name}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="section-block">
-                  <div className="form-grid-3">
-                    <div className="form-field">
-                      <label>Tour Type *</label>
-                      <select
-                        className="form-select"
-                        name="type"
-                        value={bookingForm.type}
-                        onChange={onChange}
-                      >
-                        {BOOKING_TOUR_TYPES.map((item) => (
-                          <option key={item} value={item}>
-                            {item}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-
-                    <div className="form-field">
-                      <label>Departure City</label>
-                      <input
-                        className="form-input"
-                        type="text"
-                        name="departureCity"
-                        value={bookingForm.departureCity}
-                        onChange={onChange}
-                        placeholder="e.g. Islamabad"
-                      />
-                    </div>
-
-                    <div className="form-field">
-                      <label>Booked By</label>
-                      <select
-                        className="form-select"
-                        name="bookedBy"
-                        value={bookingForm.bookedBy}
-                        onChange={onChange}
-                      >
-                        <option value="">Select</option>
-                        {BOOKED_BY_OPTIONS.map((item) => (
-                          <option key={item} value={item}>
-                            {item}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="form-section">
-                <div className="form-section-title">✈️ Travel Details</div>
-
-                <div className="form-grid-2">
-                  <div className="form-field">
-                    <label>Transport</label>
-                    <select
-                      className="form-select"
-                      name="transport"
-                      value={bookingForm.transport}
-                      onChange={onChange}
-                    >
-                      <option value="">Select transport</option>
-                      {transportOptions.map((item) => (
-                        <option key={item} value={item}>
-                          {item}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div className="form-field">
-                    <label>Accommodation</label>
-                    <input
-                      className="form-input"
-                      type="text"
-                      name="accommodation"
-                      value={bookingForm.accommodation}
-                      onChange={onChange}
-                      placeholder="e.g. Hotel Serena, 3-star"
-                    />
-                  </div>
-                </div>
-
-                <div className="section-block">
-                  <div className="form-grid-2">
-                    <div className="form-field">
-                      <label>Departure Date *</label>
-                      <input
-                        className="form-input"
-                        type="date"
-                        name="travelStartDate"
-                        value={bookingForm.travelStartDate}
-                        onChange={onChange}
-                      />
-                    </div>
-
-                    <div className="form-field">
-                      <label>Return Date *</label>
-                      <input
-                        className="form-input"
-                        type="date"
-                        name="travelEndDate"
-                        value={bookingForm.travelEndDate}
-                        onChange={onChange}
-                      />
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="form-section">
-                <div className="form-section-title">
-                  👥 Persons
-                  <span className="count-pill">{totalPersons} total</span>
-                </div>
-
-                <div className="form-grid-3">
-                  <div className="form-field">
-                    <label>Adults</label>
-                    <input
-                      className="form-input"
-                      type="number"
-                      min="0"
-                      name="adults"
-                      value={bookingForm.adults}
-                      onChange={onChange}
-                    />
-                  </div>
-
-                  <div className="form-field">
-                    <label>Children</label>
-                    <input
-                      className="form-input"
-                      type="number"
-                      min="0"
-                      name="children"
-                      value={bookingForm.children}
-                      onChange={onChange}
-                    />
-                  </div>
-
-                  <div className="form-field">
-                    <label>Infants</label>
-                    <input
-                      className="form-input"
-                      type="number"
-                      min="0"
-                      name="infants"
-                      value={bookingForm.infants}
-                      onChange={onChange}
-                    />
-                  </div>
-                </div>
-
-                <div className="section-block">
-                  <div className="form-grid-2">
-                    <div className="form-field">
-                      <label>Group Type</label>
-                      <select
-                        className="form-select"
-                        name="groupType"
-                        value={bookingForm.groupType}
-                        onChange={onChange}
-                      >
-                        {groupTypes.map((item) => (
-                          <option key={item} value={item}>
-                            {item}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-
-                    {bookingForm.groupType === 'Other' && (
-                      <div className="form-field">
-                        <label>Other Group Note</label>
-                        <input
-                          className="form-input"
-                          type="text"
-                          name="groupTypeNote"
-                          value={bookingForm.groupTypeNote}
-                          onChange={onChange}
-                          placeholder="e.g. 3 colleagues"
-                        />
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              <div className="form-section">
-                <div className="form-section-title">📝 Notes</div>
-
-                <div className="form-field">
-                  <label>Special Notes</label>
-                  <textarea
-                    className="form-textarea"
-                    name="specialNotes"
-                    value={bookingForm.specialNotes}
-                    onChange={onChange}
-                    rows={5}
-                    placeholder="Any special requests or notes..."
-                  />
-                </div>
-              </div>
-
-              <div className="form-section">
-                <div className="form-section-title">💳 Payment</div>
-
-                <div className="form-grid-2">
-                  <div className="form-field">
-                    <label>Package Price (PKR)</label>
-                    <input
-                      className="form-input"
-                      type="number"
-                      min="0"
-                      name="packagePrice"
-                      value={bookingForm.packagePrice}
-                      onChange={onChange}
-                    />
-                  </div>
-
-                  <div className="form-field">
-                    <label>Suggested price</label>
-                    <div className="suggested-price-row">
-                      <span className="suggested-price-value">
-                        {formatCurrency(suggestedPackagePrice || 0)}
-                      </span>
-                      {!readOnly && suggestedPackagePrice > 0 && (
-                        <SecondaryButton
-                          type="button"
-                          size="small"
-                          onClick={onApplySuggestedPrice}
-                        >
-                          Apply
-                        </SecondaryButton>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                <div className="section-block">
-                  <div className="payment-ledger-header">
-                    <div className="form-section-title">Payments</div>
-                    {!readOnly && (
-                      <SecondaryButton
-                        type="button"
-                        size="small"
-                        onClick={onAddPayment}
-                      >
-                        + Add payment
-                      </SecondaryButton>
-                    )}
-                  </div>
-
-                  {payments.map((payment, index) => (
-                    <div key={payment.id || index} className="payment-row">
-                      <input
-                        className="form-input"
-                        type="number"
-                        min="0"
-                        placeholder="Amount"
-                        value={payment.amount}
-                        onChange={(e) =>
-                          onPaymentChange(index, 'amount', e.target.value)
-                        }
-                      />
-                      <input
-                        className="form-input"
-                        type="date"
-                        value={payment.paidAt}
-                        onChange={(e) =>
-                          onPaymentChange(index, 'paidAt', e.target.value)
-                        }
-                      />
-                      <input
-                        className="form-input"
-                        type="text"
-                        placeholder="Note"
-                        value={payment.note}
-                        onChange={(e) =>
-                          onPaymentChange(index, 'note', e.target.value)
-                        }
-                      />
-                      {!readOnly && payments.length > 1 && (
-                        <OutlineButton
-                          type="button"
-                          size="small"
-                          color="error"
-                          onClick={() => onRemovePayment(index)}
-                        >
-                          Remove
-                        </OutlineButton>
-                      )}
-                    </div>
-                  ))}
-                </div>
-
-                <div className="form-grid-2">
-                  <div className="form-field">
-                    <label>Total paid</label>
-                    <div className="balance-box">{formatCurrency(totalPaid)}</div>
-                  </div>
-                  <div className="form-field">
-                    <label>Balance Due</label>
-                    <div className="balance-box">{formatCurrency(balance)}</div>
-                  </div>
-                </div>
-
-                <div className="section-block">
-                  <div className="form-section-title">📊 Financials</div>
-                  <p className="form-hint">
-                    Profit = Package Price − Total Expenses.
-                  </p>
-
-                  <div className="form-grid-2">
-                    <div className="form-field">
-                      <label>Total Expenses (PKR)</label>
-                      <input
-                        className="form-input"
-                        type="number"
-                        min="0"
-                        name="totalExpenses"
-                        value={bookingForm.totalExpenses}
-                        onChange={onChange}
-                      />
-                    </div>
-
-                    <div className="form-field">
-                      <label>Total Profit (PKR)</label>
-                      <input
-                        className="form-input"
-                        type="number"
-                        name="totalProfit"
-                        value={bookingForm.totalProfit}
-                        onChange={onChange}
-                      />
-                    </div>
-                  </div>
-
-                  {(bookingForm.totalProfit !== '' ||
-                    bookingForm.totalExpenses !== '') && (
-                    <div className="partner-share-preview">
-                      <ProfitShareBreakdown booking={bookingForm} compact />
-                    </div>
-                  )}
-                </div>
-
-                <div className="section-block">
-                  <div className="form-grid-2">
-                    <div className="form-field">
-                      <label>Status (auto from dates)</label>
-                      <div className="status-preview">
-                        <BookingStatusChip status={autoStatus} />
-                      </div>
-                    </div>
-
-                    <div className="form-field">
-                      <label>Status override</label>
-                      <select
-                        className="form-select"
-                        name="statusOverride"
-                        value={bookingForm.statusOverride}
-                        onChange={onChange}
-                      >
-                        <option value="">None (use dates)</option>
-                        {MANUAL_BOOKING_STATUSES.map((item) => (
-                          <option key={item} value={item}>
-                            {item}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </fieldset>
-
-            <div className={variant === 'page' ? 'form-page-footer' : 'modal-footer'}>
-              <OutlineButton type="button" onClick={onClose} disabled={isSubmitting}>
-                Cancel
-              </OutlineButton>
-              {!readOnly && (
-                <DarkButton type="submit" disabled={isSubmitting}>
-                  {isSubmitting
-                    ? 'Saving...'
-                    : editingBookingId
-                      ? 'Save changes'
-                      : 'Create booking'}
-                </DarkButton>
-              )}
-            </div>
-          </form>
-  );
-
-  if (variant === 'page') {
-    return <div className="booking-form-page">{formContent}</div>;
-  }
+  const payments = bookingForm.payments?.length ? bookingForm.payments : [];
+  const disabled = readOnly || isSubmitting;
 
   return (
-    <div className="modal-backdrop" onClick={handleBackdropClick}>
-      <div className="modal-card booking-modal">
-        <div className="modal-header modal-header-row">
-          <div>
-            <h2 className="modal-title">
-              {editingBookingId ? 'Edit Booking' : 'New Booking'}
-            </h2>
-            <p className="modal-subtitle">Add guest and tour booking details.</p>
-          </div>
-          <button
-            type="button"
-            className="modal-close-btn"
-            onClick={onClose}
-            disabled={isSubmitting}
-            aria-label="Close modal"
-            title="Close"
-          >
-            ×
-          </button>
-        </div>
-        <div className="modal-body">{formContent}</div>
-      </div>
-    </div>
+    <Box component="form" onSubmit={onSubmit}>
+      <fieldset disabled={disabled} style={{ border: 'none', margin: 0, padding: 0, minWidth: 0 }}>
+        <FormSection
+          title="Guest & tour"
+          subtitle="Guest details and package selection"
+          action={
+            <Chip label={`${totalPersons} travellers`} size="small" variant="outlined" />
+          }
+        >
+          <Grid container spacing={2}>
+            <Grid size={{ xs: 12, md: 6 }}>
+              <TextField
+                fullWidth
+                required
+                label="Guest name"
+                name="guestName"
+                value={bookingForm.guestName}
+                onChange={fieldChange(onChange)}
+                placeholder="Full name of the guest"
+              />
+            </Grid>
+            <Grid size={{ xs: 12, md: 6 }}>
+              <TextField
+                fullWidth
+                label="WhatsApp number"
+                name="whatsappNumber"
+                value={bookingForm.whatsappNumber}
+                onChange={fieldChange(onChange)}
+                placeholder="+92 3xx xxxxxxx"
+              />
+            </Grid>
+            <Grid size={{ xs: 12, md: 6 }}>
+              <TextField
+                fullWidth
+                required
+                select
+                label="Package"
+                name="packageTemplateId"
+                value={bookingForm.packageTemplateId}
+                onChange={onPackageChange}
+              >
+                <MenuItem value="">Select package</MenuItem>
+                {packages.map((item) => (
+                  <MenuItem key={item.id} value={item.id}>
+                    {item.name}
+                  </MenuItem>
+                ))}
+              </TextField>
+            </Grid>
+            <Grid size={{ xs: 12, md: 6 }}>
+              <TextField
+                fullWidth
+                required
+                select
+                label="Tour type"
+                name="type"
+                value={bookingForm.type}
+                onChange={fieldChange(onChange)}
+              >
+                {BOOKING_TOUR_TYPES.map((item) => (
+                  <MenuItem key={item} value={item}>
+                    {item}
+                  </MenuItem>
+                ))}
+              </TextField>
+            </Grid>
+            <Grid size={{ xs: 12, md: 6 }}>
+              <TextField
+                fullWidth
+                label="Departure city"
+                name="departureCity"
+                value={bookingForm.departureCity}
+                onChange={fieldChange(onChange)}
+                placeholder="e.g. Islamabad"
+              />
+            </Grid>
+            <Grid size={{ xs: 12, md: 6 }}>
+              <TextField
+                fullWidth
+                select
+                label="Booked by"
+                name="bookedBy"
+                value={bookingForm.bookedBy}
+                onChange={fieldChange(onChange)}
+              >
+                <MenuItem value="">Select</MenuItem>
+                {BOOKED_BY_OPTIONS.map((item) => (
+                  <MenuItem key={item} value={item}>
+                    {item}
+                  </MenuItem>
+                ))}
+              </TextField>
+            </Grid>
+          </Grid>
+        </FormSection>
+
+        <FormSection title="Travel details" subtitle="Dates, transport, and accommodation">
+          <Grid container spacing={2}>
+            <Grid size={{ xs: 12, md: 6 }}>
+              <TextField
+                fullWidth
+                select
+                label="Transport"
+                name="transport"
+                value={bookingForm.transport}
+                onChange={fieldChange(onChange)}
+              >
+                <MenuItem value="">Select transport</MenuItem>
+                {transportOptions.map((item) => (
+                  <MenuItem key={item} value={item}>
+                    {item}
+                  </MenuItem>
+                ))}
+              </TextField>
+            </Grid>
+            <Grid size={{ xs: 12, md: 6 }}>
+              <TextField
+                fullWidth
+                label="Accommodation"
+                name="accommodation"
+                value={bookingForm.accommodation}
+                onChange={fieldChange(onChange)}
+                placeholder="e.g. Hotel Serena, 3-star"
+              />
+            </Grid>
+            <Grid size={{ xs: 12, md: 6 }}>
+              <TextField
+                fullWidth
+                required
+                type="date"
+                label="Departure date"
+                name="travelStartDate"
+                value={bookingForm.travelStartDate}
+                onChange={fieldChange(onChange)}
+                slotProps={{ inputLabel: { shrink: true } }}
+              />
+            </Grid>
+            <Grid size={{ xs: 12, md: 6 }}>
+              <TextField
+                fullWidth
+                required
+                type="date"
+                label="Return date"
+                name="travelEndDate"
+                value={bookingForm.travelEndDate}
+                onChange={fieldChange(onChange)}
+                slotProps={{ inputLabel: { shrink: true } }}
+              />
+            </Grid>
+          </Grid>
+        </FormSection>
+
+        <FormSection title="Persons" subtitle="Group size and composition">
+          <Grid container spacing={2}>
+            <Grid size={{ xs: 12, sm: 4 }}>
+              <TextField
+                fullWidth
+                type="number"
+                inputProps={{ min: 0 }}
+                label="Adults"
+                name="adults"
+                value={bookingForm.adults}
+                onChange={fieldChange(onChange)}
+              />
+            </Grid>
+            <Grid size={{ xs: 12, sm: 4 }}>
+              <TextField
+                fullWidth
+                type="number"
+                inputProps={{ min: 0 }}
+                label="Children"
+                name="children"
+                value={bookingForm.children}
+                onChange={fieldChange(onChange)}
+              />
+            </Grid>
+            <Grid size={{ xs: 12, sm: 4 }}>
+              <TextField
+                fullWidth
+                type="number"
+                inputProps={{ min: 0 }}
+                label="Infants"
+                name="infants"
+                value={bookingForm.infants}
+                onChange={fieldChange(onChange)}
+              />
+            </Grid>
+            <Grid size={{ xs: 12, md: 6 }}>
+              <TextField
+                fullWidth
+                select
+                label="Group type"
+                name="groupType"
+                value={bookingForm.groupType}
+                onChange={fieldChange(onChange)}
+              >
+                {groupTypes.map((item) => (
+                  <MenuItem key={item} value={item}>
+                    {item}
+                  </MenuItem>
+                ))}
+              </TextField>
+            </Grid>
+            {bookingForm.groupType === 'Other' && (
+              <Grid size={{ xs: 12, md: 6 }}>
+                <TextField
+                  fullWidth
+                  label="Other group note"
+                  name="groupTypeNote"
+                  value={bookingForm.groupTypeNote}
+                  onChange={fieldChange(onChange)}
+                  placeholder="e.g. 3 colleagues"
+                />
+              </Grid>
+            )}
+          </Grid>
+        </FormSection>
+
+        <FormSection title="Notes" subtitle="Special requests or internal notes">
+          <TextField
+            fullWidth
+            multiline
+            minRows={4}
+            label="Special notes"
+            name="specialNotes"
+            value={bookingForm.specialNotes}
+            onChange={fieldChange(onChange)}
+            placeholder="Any special requests or notes..."
+          />
+        </FormSection>
+
+        <FormSection title="Payment & financials" subtitle="Pricing, payments, profit, and status">
+          <Grid container spacing={2}>
+            <Grid size={{ xs: 12, md: 6 }}>
+              <TextField
+                fullWidth
+                type="number"
+                inputProps={{ min: 0 }}
+                label="Package price (PKR)"
+                name="packagePrice"
+                value={bookingForm.packagePrice}
+                onChange={fieldChange(onChange)}
+              />
+            </Grid>
+            <Grid size={{ xs: 12, md: 6 }}>
+              <Stack spacing={1}>
+                <Typography variant="caption" color="text.secondary">
+                  Suggested price
+                </Typography>
+                <Stack direction="row" spacing={1} alignItems="center">
+                  <Typography variant="h6" fontWeight={700}>
+                    {formatCurrency(suggestedPackagePrice || 0)}
+                  </Typography>
+                  {!readOnly && suggestedPackagePrice > 0 && (
+                    <SecondaryButton type="button" size="small" onClick={onApplySuggestedPrice}>
+                      Apply
+                    </SecondaryButton>
+                  )}
+                </Stack>
+              </Stack>
+            </Grid>
+          </Grid>
+
+          <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mt: 3, mb: 1.5 }}>
+            <Typography variant="subtitle1" fontWeight={700}>
+              Payments
+            </Typography>
+            {!readOnly && (
+              <SecondaryButton type="button" size="small" onClick={onAddPayment}>
+                + Add payment
+              </SecondaryButton>
+            )}
+          </Stack>
+
+          <Stack spacing={1.5} sx={{ mb: 3 }}>
+            {payments.map((payment, index) => (
+              <Card
+                key={payment.id || index}
+                variant="outlined"
+                sx={{ p: 2, bgcolor: (theme) => alpha(theme.palette.grey[500], 0.04) }}
+              >
+                <Grid container spacing={2} alignItems="center">
+                  <Grid size={{ xs: 12, sm: 3 }}>
+                    <TextField
+                      fullWidth
+                      type="number"
+                      inputProps={{ min: 0 }}
+                      label="Amount"
+                      value={payment.amount}
+                      onChange={(e) => onPaymentChange(index, 'amount', e.target.value)}
+                    />
+                  </Grid>
+                  <Grid size={{ xs: 12, sm: 3 }}>
+                    <TextField
+                      fullWidth
+                      type="date"
+                      label="Paid on"
+                      value={payment.paidAt}
+                      onChange={(e) => onPaymentChange(index, 'paidAt', e.target.value)}
+                      slotProps={{ inputLabel: { shrink: true } }}
+                    />
+                  </Grid>
+                  <Grid size={{ xs: 12, sm: 4 }}>
+                    <TextField
+                      fullWidth
+                      label="Note"
+                      value={payment.note}
+                      onChange={(e) => onPaymentChange(index, 'note', e.target.value)}
+                      placeholder="Optional"
+                    />
+                  </Grid>
+                  <Grid size={{ xs: 12, sm: 2 }}>
+                    {!readOnly && payments.length > 1 && (
+                      <IconButton
+                        color="error"
+                        onClick={() => onRemovePayment(index)}
+                        aria-label="Remove payment"
+                      >
+                        <i className="ri-delete-bin-line" />
+                      </IconButton>
+                    )}
+                  </Grid>
+                </Grid>
+              </Card>
+            ))}
+          </Stack>
+
+          <Grid container spacing={2} sx={{ mb: 3 }}>
+            <Grid size={{ xs: 12, md: 6 }}>
+              <Alert severity="info" icon={false} sx={{ py: 1.5 }}>
+                <Typography variant="caption" color="text.secondary">
+                  Total paid
+                </Typography>
+                <Typography variant="h6" fontWeight={700}>
+                  {formatCurrency(totalPaid)}
+                </Typography>
+              </Alert>
+            </Grid>
+            <Grid size={{ xs: 12, md: 6 }}>
+              <Alert severity={balance > 0 ? 'warning' : 'success'} icon={false} sx={{ py: 1.5 }}>
+                <Typography variant="caption" color="text.secondary">
+                  Balance due
+                </Typography>
+                <Typography variant="h6" fontWeight={700}>
+                  {formatCurrency(balance)}
+                </Typography>
+              </Alert>
+            </Grid>
+          </Grid>
+
+          <Typography variant="subtitle1" fontWeight={700} sx={{ mb: 1 }}>
+            Financials
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            Profit = package price − total expenses.
+          </Typography>
+
+          <Grid container spacing={2}>
+            <Grid size={{ xs: 12, md: 6 }}>
+              <TextField
+                fullWidth
+                type="number"
+                inputProps={{ min: 0 }}
+                label="Total expenses (PKR)"
+                name="totalExpenses"
+                value={bookingForm.totalExpenses}
+                onChange={fieldChange(onChange)}
+              />
+            </Grid>
+            <Grid size={{ xs: 12, md: 6 }}>
+              <TextField
+                fullWidth
+                type="number"
+                label="Total profit (PKR)"
+                name="totalProfit"
+                value={bookingForm.totalProfit}
+                onChange={fieldChange(onChange)}
+              />
+            </Grid>
+          </Grid>
+
+          {(bookingForm.totalProfit !== '' || bookingForm.totalExpenses !== '') && (
+            <Box sx={{ mt: 2 }}>
+              <ProfitShareBreakdown booking={bookingForm} compact />
+            </Box>
+          )}
+
+          <Grid container spacing={2} sx={{ mt: 2 }}>
+            <Grid size={{ xs: 12, md: 6 }}>
+              <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 1 }}>
+                Status (auto from dates)
+              </Typography>
+              <BookingStatusChip status={autoStatus} />
+            </Grid>
+            <Grid size={{ xs: 12, md: 6 }}>
+              <TextField
+                fullWidth
+                select
+                label="Status override"
+                name="statusOverride"
+                value={bookingForm.statusOverride}
+                onChange={fieldChange(onChange)}
+              >
+                <MenuItem value="">None (use dates)</MenuItem>
+                {MANUAL_BOOKING_STATUSES.map((item) => (
+                  <MenuItem key={item} value={item}>
+                    {item}
+                  </MenuItem>
+                ))}
+              </TextField>
+            </Grid>
+          </Grid>
+        </FormSection>
+      </fieldset>
+
+      <Box
+        sx={{
+          position: 'sticky',
+          bottom: 0,
+          zIndex: 2,
+          mt: 3,
+          py: 2,
+          px: 3,
+          mx: -3,
+          display: 'flex',
+          justifyContent: 'flex-end',
+          gap: 1.5,
+          bgcolor: 'background.paper',
+          borderTop: 1,
+          borderColor: 'divider',
+        }}
+      >
+        <OutlineButton type="button" onClick={onClose} disabled={isSubmitting}>
+          Cancel
+        </OutlineButton>
+        {!readOnly && (
+          <DarkButton type="submit" disabled={isSubmitting}>
+            {isSubmitting
+              ? 'Saving...'
+              : editingBookingId
+                ? 'Save changes'
+                : 'Create booking'}
+          </DarkButton>
+        )}
+      </Box>
+    </Box>
   );
 }
 

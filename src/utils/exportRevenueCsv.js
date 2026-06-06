@@ -27,6 +27,8 @@ export function downloadRevenueCsv(bookings, range, filename = 'pakrism-revenue.
     'Collected (period)',
     'Profit',
     'Profit %',
+    'Zohaib Pool Paid',
+    'Pervaiz Pool Paid',
     ...recipientHeaders,
     'Status',
   ];
@@ -50,6 +52,8 @@ export function downloadRevenueCsv(bookings, range, filename = 'pakrism-revenue.
       row.collectedInPeriod,
       row.profit ?? '',
       row.profitPercentage != null ? row.profitPercentage.toFixed(1) : '',
+      row.partnerPoolPaid?.zohaib ? 'Yes' : 'No',
+      row.partnerPoolPaid?.pervaiz ? 'Yes' : 'No',
       ...recipientCells,
       row.status,
     ];

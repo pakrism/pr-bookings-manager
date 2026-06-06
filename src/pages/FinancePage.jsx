@@ -18,13 +18,30 @@ import { OutlineButton } from '../components/common/BrandButton';
 import RevenueOverviewTab from '../components/revenue/RevenueOverviewTab';
 import RevenuePoolTab from '../components/revenue/RevenuePoolTab';
 import { PERIOD_PRESETS, REVENUE_TABS, formatPercent } from '../components/revenue/revenueConstants';
+import { BOOKED_BY_OPTIONS } from '../data/constants';
 import { getPeriodRange } from '../utils/datePeriods';
 import {
   computeRevenueMetrics,
   filterBookingsByRevenuePeriod,
+  filterBookingsForFinance,
 } from '../utils/revenueMetrics';
 import { downloadRevenueCsv } from '../utils/exportRevenueCsv';
 import { formatCurrency } from '../utils/helpers';
+
+const STATUS_FILTER_OPTIONS = [
+  { value: 'all', label: 'All statuses' },
+  { value: 'Upcoming', label: 'Upcoming' },
+  { value: 'On-Going', label: 'On-Going' },
+  { value: 'Completed', label: 'Completed' },
+  { value: 'Cancelled', label: 'Cancelled' },
+  { value: 'Refunded', label: 'Refunded' },
+];
+
+const PAYOUT_FILTER_OPTIONS = [
+  { value: 'all', label: 'All payouts' },
+  { value: 'partner_unpaid', label: 'Partner unpaid' },
+  { value: 'recipient_unpaid', label: 'Any recipient unpaid' },
+];
 
 function FinanceMetricCard({ title, value, subtitle, icon, colorKey = 'primary' }) {
   const theme = useTheme();
@@ -82,11 +99,24 @@ export default function FinancePage({
   onExportToast,
   canEdit = false,
   onToggleProfitSharePaid,
+  onTogglePartnerPoolPaid,
 }) {
   const [activeTab, setActiveTab] = useState('overview');
   const [preset, setPreset] = useState('this_month');
   const [customStart, setCustomStart] = useState('');
   const [customEnd, setCustomEnd] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [bookedByFilter, setBookedByFilter] = useState('all');
+  const [payoutFilter, setPayoutFilter] = useState('all');
+
+  const financeFilters = useMemo(
+    () => ({
+      status: statusFilter,
+      bookedBy: bookedByFilter,
+      payoutFilter,
+    }),
+    [statusFilter, bookedByFilter, payoutFilter]
+  );
 
   const range = useMemo(
     () => (preset === 'all_time' ? null : getPeriodRange(preset, customStart, customEnd)),
@@ -94,14 +124,19 @@ export default function FinancePage({
   );
 
   const metrics = useMemo(
-    () => computeRevenueMetrics(bookings, preset, customStart, customEnd),
-    [bookings, preset, customStart, customEnd]
+    () => computeRevenueMetrics(bookings, preset, customStart, customEnd, financeFilters),
+    [bookings, preset, customStart, customEnd, financeFilters]
   );
 
-  const tableBookings = useMemo(
-    () => filterBookingsByRevenuePeriod(bookings, preset, customStart, customEnd),
-    [bookings, preset, customStart, customEnd]
-  );
+  const tableBookings = useMemo(() => {
+    const periodBookings = filterBookingsByRevenuePeriod(
+      bookings,
+      preset,
+      customStart,
+      customEnd
+    );
+    return filterBookingsForFinance(periodBookings, financeFilters);
+  }, [bookings, preset, customStart, customEnd, financeFilters]);
 
   const summaryCards = useMemo(
     () => [
@@ -153,6 +188,18 @@ export default function FinancePage({
   function handleOpenPoolTab(poolId) {
     setActiveTab(poolId);
   }
+
+  const poolTabProps = {
+    metrics,
+    tableBookings,
+    bookings,
+    range,
+    onViewBooking,
+    canEdit,
+    onToggleProfitSharePaid,
+    onTogglePartnerPoolPaid,
+    onExportToast,
+  };
 
   return (
     <Box>
@@ -226,6 +273,46 @@ export default function FinancePage({
               />
             </>
           )}
+
+          <FormControl size="small" sx={{ minWidth: 160 }}>
+            <Select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+            >
+              {STATUS_FILTER_OPTIONS.map((opt) => (
+                <MenuItem key={opt.value} value={opt.value}>
+                  {opt.label}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+
+          <FormControl size="small" sx={{ minWidth: 140 }}>
+            <Select
+              value={bookedByFilter}
+              onChange={(e) => setBookedByFilter(e.target.value)}
+            >
+              <MenuItem value="all">All booked by</MenuItem>
+              {BOOKED_BY_OPTIONS.map((opt) => (
+                <MenuItem key={opt} value={opt}>
+                  {opt}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+
+          <FormControl size="small" sx={{ minWidth: 180 }}>
+            <Select
+              value={payoutFilter}
+              onChange={(e) => setPayoutFilter(e.target.value)}
+            >
+              {PAYOUT_FILTER_OPTIONS.map((opt) => (
+                <MenuItem key={opt.value} value={opt.value}>
+                  {opt.label}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
         </Box>
       </Card>
 
@@ -251,34 +338,17 @@ export default function FinancePage({
       {activeTab === 'overview' && (
         <RevenueOverviewTab
           metrics={metrics}
+          bookings={tableBookings}
           onOpenPoolTab={handleOpenPoolTab}
         />
       )}
 
       {activeTab === 'zohaib' && (
-        <RevenuePoolTab
-          poolId="zohaib"
-          metrics={metrics}
-          tableBookings={tableBookings}
-          bookings={bookings}
-          range={range}
-          onViewBooking={onViewBooking}
-          canEdit={canEdit}
-          onToggleProfitSharePaid={onToggleProfitSharePaid}
-        />
+        <RevenuePoolTab poolId="zohaib" {...poolTabProps} />
       )}
 
       {activeTab === 'pervaiz' && (
-        <RevenuePoolTab
-          poolId="pervaiz"
-          metrics={metrics}
-          tableBookings={tableBookings}
-          bookings={bookings}
-          range={range}
-          onViewBooking={onViewBooking}
-          canEdit={canEdit}
-          onToggleProfitSharePaid={onToggleProfitSharePaid}
-        />
+        <RevenuePoolTab poolId="pervaiz" {...poolTabProps} />
       )}
     </Box>
   );

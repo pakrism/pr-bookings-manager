@@ -15,7 +15,8 @@ export const PROFIT_POOLS = {
       { key: 'mrs_pervaiz', label: 'Mrs Pervaiz', percent: 20 },
       { key: 'aahid', label: 'Aahid', percent: 5 },
       { key: 'skardu_expenses', label: 'Skardu Expenses', percent: 15 },
-      { key: 'pervaiz', label: 'Pervaiz', percent: 60 },
+      { key: 'charity', label: 'Charity', percent: 5 },
+      { key: 'pervaiz', label: 'Pervaiz', percent: 55 },
     ],
   },
 };

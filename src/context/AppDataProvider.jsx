@@ -22,7 +22,7 @@ import {
 } from '../utils/auditLog';
 import { downloadBookingsCsv } from '../utils/exportBookingsCsv';
 import { prepareBookingsForList } from '../utils/bookingFilters';
-import { normalizeProfitSharePaid } from '../utils/partnerProfit';
+import { normalizeProfitSharePaid, normalizePartnerPoolPaid } from '../utils/partnerProfit';
 import {
   subscribeToPackages,
   subscribeToBookings,
@@ -403,6 +403,7 @@ export function AppDataProvider({ authUser, userProfile, children }) {
           bookingRef: existingBooking?.bookingRef || '',
           ...bookingPayload,
           profitSharePaid: normalizeProfitSharePaid(existingBooking?.profitSharePaid),
+          partnerPoolPaid: normalizePartnerPoolPaid(existingBooking?.partnerPoolPaid),
           createdByUid: existingBooking?.createdByUid || authUser.uid,
           createdByName: existingBooking?.createdByName || userProfile.fullName,
           createdAt: existingBooking?.createdAt || null,
@@ -465,6 +466,25 @@ export function AppDataProvider({ authUser, userProfile, children }) {
       showToast(paid ? 'Marked as paid.' : 'Marked as unpaid.');
     } catch (error) {
       showToast('Failed to update payout status.', 'error');
+    }
+  }
+
+  async function handleTogglePartnerPoolPaid(bookingId, poolId, paid) {
+    const booking = bookings.find((item) => item.id === bookingId);
+    if (!booking) return;
+    const partnerPoolPaid = {
+      ...normalizePartnerPoolPaid(booking.partnerPoolPaid),
+      [poolId]: paid,
+    };
+    try {
+      await updateBooking(bookingId, {
+        partnerPoolPaid,
+        updatedByUid: authUser.uid,
+        updatedByName: userProfile.fullName,
+      });
+      showToast(paid ? 'Partner share marked as paid.' : 'Partner share marked as unpaid.');
+    } catch (error) {
+      showToast('Failed to update partner payout status.', 'error');
     }
   }
 
@@ -571,6 +591,7 @@ export function AppDataProvider({ authUser, userProfile, children }) {
     handleSavePackage,
     handleSaveBooking,
     handleToggleProfitSharePaid,
+    handleTogglePartnerPoolPaid,
     requestDeleteBooking,
     requestDeletePackage,
     handleExportBookingsCsv,

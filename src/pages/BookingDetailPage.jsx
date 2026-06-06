@@ -58,6 +58,7 @@ export default function BookingDetailPage() {
     setQuickUpdateBooking,
     quickUpdateBooking,
     handleToggleProfitSharePaid,
+    handleTogglePartnerPoolPaid,
     packages,
   } = useAppData();
 
@@ -218,7 +219,12 @@ export default function BookingDetailPage() {
                 <ProfitShareBreakdown
                   booking={booking}
                   canEdit={isAdmin}
-                  onTogglePaid={handleToggleProfitSharePaid}
+                  onTogglePaid={(shareKey, paid) =>
+                    handleToggleProfitSharePaid(booking.id, shareKey, paid)
+                  }
+                  onTogglePartnerPaid={(poolId, paid) =>
+                    handleTogglePartnerPoolPaid(booking.id, poolId, paid)
+                  }
                 />
               </Box>
             </DetailCard>
