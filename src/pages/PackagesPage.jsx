@@ -59,7 +59,7 @@ function filterPackages(packages, { destination, type, activeOnly, search }) {
 
 export default function PackagesPage() {
   const navigate = useNavigate();
-  const { packages, bookings, isAdmin, requestDeletePackage } = useAppData();
+  const { packages, bookings, capabilities, requestDeletePackage } = useAppData();
   const [sortKey, setSortKey] = useState('featured');
   const [page, setPage] = useState(1);
   const [filtersOpen, setFiltersOpen] = useState(false);
@@ -107,7 +107,7 @@ export default function PackagesPage() {
         <EmptyContent
           title="No packages yet"
           description="Add your first package template."
-          action={isAdmin && <DarkButton onClick={() => navigate('/packages/new')}>+ Add package</DarkButton>}
+          action={capabilities.canManagePackages && <DarkButton onClick={() => navigate('/packages/new')}>+ Add package</DarkButton>}
         />
       </Box>
     );
@@ -141,7 +141,7 @@ export default function PackagesPage() {
               </IconButton>
             </Tooltip>
             <PackageSort value={sortKey} onChange={(v) => { setSortKey(v); setPage(1); }} />
-            {isAdmin && <DarkButton onClick={() => navigate('/packages/new')}>+ Add package</DarkButton>}
+            {capabilities.canManagePackages && <DarkButton onClick={() => navigate('/packages/new')}>+ Add package</DarkButton>}
           </>
         }
       />
@@ -166,7 +166,7 @@ export default function PackagesPage() {
               bookingCount={bookingCounts[pkg.id] || 0}
               onEdit={() => navigate(`/packages/${pkg.id}/edit`)}
               onDelete={requestDeletePackage}
-              canEdit={isAdmin}
+              canEdit={capabilities.canManagePackages}
             />
           </Grid>
         ))}

@@ -17,11 +17,14 @@ function escapeCsv(value) {
   return text;
 }
 
-export function downloadBookingsCsv(bookings, filename = 'pakrism-bookings.csv') {
-  const recipientHeaders = RECIPIENT_CONFIGS.flatMap((c) => [
-    `${c.label} Amount`,
-    `${c.label} Paid`,
-  ]);
+export function downloadBookingsCsv(
+  bookings,
+  filename = 'pakrism-bookings.csv',
+  { includeFinancials = true } = {}
+) {
+  const recipientHeaders = includeFinancials
+    ? RECIPIENT_CONFIGS.flatMap((c) => [`${c.label} Amount`, `${c.label} Paid`])
+    : [];
 
   const headers = [
     'Ref',
@@ -32,24 +35,30 @@ export function downloadBookingsCsv(bookings, filename = 'pakrism-bookings.csv')
     'Return',
     'Status',
     'Tour Type',
-    'Price',
-    'Total Paid',
-    'Total Expenses',
-    'Net Cash',
-    'Balance',
-    'Profit',
-    'Profit %',
-    ...recipientHeaders,
+    ...(includeFinancials
+      ? [
+          'Price',
+          'Total Paid',
+          'Total Expenses',
+          'Net Cash',
+          'Balance',
+          'Profit',
+          'Profit %',
+          ...recipientHeaders,
+        ]
+      : []),
     'Booked By',
   ];
 
   const rows = bookings.map((booking) => {
     const distribution = getProfitDistribution(booking);
     const profit = getBookingProfit(booking);
-    const recipientCells = RECIPIENT_CONFIGS.flatMap((config) => {
-      const dist = distribution.find((d) => d.shareKey === config.shareKey);
-      return [dist?.amount ?? '', dist?.paid ? 'Yes' : 'No'];
-    });
+    const recipientCells = includeFinancials
+      ? RECIPIENT_CONFIGS.flatMap((config) => {
+          const dist = distribution.find((d) => d.shareKey === config.shareKey);
+          return [dist?.amount ?? '', dist?.paid ? 'Yes' : 'No'];
+        })
+      : [];
 
     return [
       booking.bookingRef,
@@ -60,14 +69,18 @@ export function downloadBookingsCsv(bookings, filename = 'pakrism-bookings.csv')
       booking.travelEndDate,
       resolveBookingStatus(booking),
       normalizeBookingTourType(booking.type),
-      booking.packagePrice,
-      getTotalPaid(booking),
-      getTotalDebits(booking) || booking.totalExpenses || '',
-      getNetCashPosition(booking),
-      getBookingBalance(booking),
-      profit ?? '',
-      getProfitPercentage(profit, booking.packagePrice)?.toFixed(1) ?? '',
-      ...recipientCells,
+      ...(includeFinancials
+        ? [
+            booking.packagePrice,
+            getTotalPaid(booking),
+            getTotalDebits(booking) || booking.totalExpenses || '',
+            getNetCashPosition(booking),
+            getBookingBalance(booking),
+            profit ?? '',
+            getProfitPercentage(profit, booking.packagePrice)?.toFixed(1) ?? '',
+            ...recipientCells,
+          ]
+        : []),
       booking.bookedBy,
     ];
   });

@@ -46,7 +46,7 @@ export function PoolEntryCard({
   );
 }
 
-export default function FinancePoolCards({ metrics, onOpenPoolTab }) {
+export default function FinancePoolCards({ metrics, onOpenPoolTab, visiblePoolIds = null }) {
   const zohaibRecipientSummary = useMemo(
     () => getPoolPaidSummary(metrics.recipientTotals, 'zohaib'),
     [metrics.recipientTotals]
@@ -67,10 +67,13 @@ export default function FinancePoolCards({ metrics, onOpenPoolTab }) {
 
   const zohaibTotal = metrics.poolTotals?.zohaib ?? 0;
   const pervaizTotal = metrics.poolTotals?.pervaiz ?? 0;
+  const showZohaib = !visiblePoolIds || visiblePoolIds.includes('zohaib');
+  const showPervaiz = !visiblePoolIds || visiblePoolIds.includes('pervaiz');
 
   return (
     <Grid container spacing={3} sx={{ mb: 3 }}>
-      <Grid size={{ xs: 12, md: 6 }}>
+      {showZohaib && (
+      <Grid size={{ xs: 12, md: showPervaiz ? 6 : 12 }}>
         <PoolEntryCard
           title="Zohaib pool"
           poolTotal={zohaibTotal}
@@ -80,7 +83,9 @@ export default function FinancePoolCards({ metrics, onOpenPoolTab }) {
           onOpen={() => onOpenPoolTab('zohaib')}
         />
       </Grid>
-      <Grid size={{ xs: 12, md: 6 }}>
+      )}
+      {showPervaiz && (
+      <Grid size={{ xs: 12, md: showZohaib ? 6 : 12 }}>
         <PoolEntryCard
           title="Pervaiz pool"
           poolTotal={pervaizTotal}
@@ -90,6 +95,7 @@ export default function FinancePoolCards({ metrics, onOpenPoolTab }) {
           onOpen={() => onOpenPoolTab('pervaiz')}
         />
       </Grid>
+      )}
     </Grid>
   );
 }

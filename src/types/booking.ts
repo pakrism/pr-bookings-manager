@@ -1,4 +1,4 @@
-export type UserRole = 'admin' | 'viewer';
+export type UserRole = 'admin' | 'booking_manager' | 'viewer';
 
 export type BookingPayment = {
   id: string;
@@ -70,4 +70,6 @@ export type UserProfile = {
   email?: string;
   isActive?: boolean;
   role?: UserRole;
+  bookedBy?: 'Zohaib' | 'Pervaiz';
+  poolId?: 'zohaib' | 'pervaiz';
 };

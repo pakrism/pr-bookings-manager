@@ -33,6 +33,8 @@ export default function BookingTableRow({
   onDelete,
   onQuickUpdate,
   canEdit,
+  showFinancialColumns = true,
+  showSelection = true,
 }) {
   const [anchorEl, setAnchorEl] = useState(null);
   const open = Boolean(anchorEl);
@@ -47,9 +49,11 @@ export default function BookingTableRow({
 
   return (
     <TableRow hover selected={selected} sx={{ cursor: 'pointer' }} onClick={() => onView?.(row)}>
-      <TableCell padding="checkbox" onClick={(e) => e.stopPropagation()}>
-        <Checkbox checked={selected} onChange={() => onSelectRow?.(row.id)} />
-      </TableCell>
+      {showSelection && (
+        <TableCell padding="checkbox" onClick={(e) => e.stopPropagation()}>
+          <Checkbox checked={selected} onChange={() => onSelectRow?.(row.id)} />
+        </TableCell>
+      )}
       <TableCell onClick={(e) => e.stopPropagation()}>
         <Link
           component={RouterLink}
@@ -83,15 +87,19 @@ export default function BookingTableRow({
         <Typography variant="caption" color="text.secondary">{row.transport || '-'}</Typography>
       </TableCell>
       <TableCell><BookingStatusChip status={resolvedStatus} /></TableCell>
-      <TableCell align="right">{formatCurrency(row.packagePrice)}</TableCell>
-      <TableCell align="right">
-        {profit != null ? (
-          <Box>
-            <Typography variant="body2">{formatCurrency(profit)}</Typography>
-            <Typography variant="caption" color="text.secondary">{profitPercentage?.toFixed(1) ?? '-'}%</Typography>
-          </Box>
-        ) : '-'}
-      </TableCell>
+      {showFinancialColumns && (
+        <>
+          <TableCell align="right">{formatCurrency(row.packagePrice)}</TableCell>
+          <TableCell align="right">
+            {profit != null ? (
+              <Box>
+                <Typography variant="body2">{formatCurrency(profit)}</Typography>
+                <Typography variant="caption" color="text.secondary">{profitPercentage?.toFixed(1) ?? '-'}%</Typography>
+              </Box>
+            ) : '-'}
+          </TableCell>
+        </>
+      )}
       <TableCell align="right" onClick={(e) => e.stopPropagation()}>
         {canEdit && (
           <IconButton size="small" onClick={() => onEdit?.(row)}>
@@ -105,13 +113,13 @@ export default function BookingTableRow({
           {whatsappLink && (
             <MenuItem component="a" href={whatsappLink} target="_blank" rel="noreferrer">WhatsApp</MenuItem>
           )}
-          {canEdit && (
+          {canEdit && onQuickUpdate && (
             <MenuItem onClick={() => { setAnchorEl(null); onQuickUpdate?.(row); }}>Quick update</MenuItem>
           )}
           {canEdit && (
             <MenuItem onClick={() => { setAnchorEl(null); onEdit?.(row); }}>Edit</MenuItem>
           )}
-          {canEdit && [<Divider key="d" />, <MenuItem key="del" sx={{ color: 'error.main' }} onClick={() => { setAnchorEl(null); onDelete?.(row.id); }}>Delete</MenuItem>]}
+          {canEdit && onDelete && [<Divider key="d" />, <MenuItem key="del" sx={{ color: 'error.main' }} onClick={() => { setAnchorEl(null); onDelete?.(row.id); }}>Delete</MenuItem>]}
         </Menu>
       </TableCell>
     </TableRow>

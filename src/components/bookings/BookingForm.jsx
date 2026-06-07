@@ -63,6 +63,7 @@ function BookingForm({
   onClose,
   isSubmitting = false,
   readOnly = false,
+  lockBookedBy = false,
 }) {
   const totalPersons =
     Number(bookingForm.adults || 0) +
@@ -181,6 +182,7 @@ function BookingForm({
                 name="bookedBy"
                 value={bookingForm.bookedBy}
                 onChange={fieldChange(onChange)}
+                disabled={disabled || lockBookedBy}
               >
                 <MenuItem value="">Select</MenuItem>
                 {BOOKED_BY_OPTIONS.map((item) => (

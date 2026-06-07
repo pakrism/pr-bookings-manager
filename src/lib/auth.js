@@ -3,8 +3,9 @@ import {
   signOut,
   onAuthStateChanged,
 } from 'firebase/auth';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, onSnapshot } from 'firebase/firestore';
 import { auth, db } from './firebase';
+import { normalizeUserRole } from '../utils/accessControl';
 
 export async function loginWithEmail(email, password) {
   const result = await signInWithEmailAndPassword(auth, email, password);
@@ -32,6 +33,22 @@ export async function getApprovedUserProfile(uid) {
   return {
     uid,
     ...data,
-    role: data.role === 'viewer' ? 'viewer' : 'admin',
+    role: normalizeUserRole(data.role),
   };
+}
+
+export function subscribeToUserProfile(uid, callback) {
+  const ref = doc(db, 'users', uid);
+  return onSnapshot(ref, (snap) => {
+    if (!snap.exists()) {
+      callback(null);
+      return;
+    }
+    const data = snap.data();
+    callback({
+      uid,
+      ...data,
+      role: normalizeUserRole(data.role),
+    });
+  });
 }

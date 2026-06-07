@@ -41,27 +41,28 @@ const VIEW_TABS = [
 ];
 
 export default function SchedulePage() {
-  const { bookings, navigateToBooking } = useAppData();
+  const { scopedBookings, capabilities, navigateToBooking } = useAppData();
+  const showFinancials = capabilities.canViewFinancialFields;
   const [viewTab, setViewTab] = useState('upcoming');
   const [search, setSearch] = useState('');
   const [monthFilter, setMonthFilter] = useState('All months');
   const [sortKey, setSortKey] = useState('departure_asc');
 
-  const monthOptions = getTravelMonthOptions(bookings);
+  const monthOptions = getTravelMonthOptions(scopedBookings);
 
   const groupedSchedules = useMemo(() => {
-    let batches = groupBookingsIntoSchedules(bookings, { search, view: viewTab });
+    let batches = groupBookingsIntoSchedules(scopedBookings, { search, view: viewTab });
     if (monthFilter && monthFilter !== 'All months') {
       batches = batches.filter((batch) => toMonthKey(batch.travelStartDate) === monthFilter);
     }
     return sortScheduleBatches(batches, sortKey);
-  }, [bookings, search, viewTab, monthFilter, sortKey]);
+  }, [scopedBookings, search, viewTab, monthFilter, sortKey]);
 
   const kpis = useMemo(() => getScheduleKpis(groupedSchedules), [groupedSchedules]);
 
   const tabs = VIEW_TABS.map((t) => ({
     ...t,
-    count: groupBookingsIntoSchedules(bookings, { search: '', view: t.value }).length,
+    count: groupBookingsIntoSchedules(scopedBookings, { search: '', view: t.value }).length,
   }));
 
   return (
@@ -73,8 +74,12 @@ export default function SchedulePage() {
         {[
           { label: 'Trip batches', value: kpis.totalBatches },
           { label: 'Total pax', value: kpis.totalPax },
-          { label: 'Total advance', value: formatScheduleMoney(kpis.totalAdvance) },
-          { label: 'Outstanding', value: formatScheduleMoney(kpis.totalBalance) },
+          ...(showFinancials
+            ? [
+                { label: 'Total advance', value: formatScheduleMoney(kpis.totalAdvance) },
+                { label: 'Outstanding', value: formatScheduleMoney(kpis.totalBalance) },
+              ]
+            : []),
         ].map((kpi) => (
           <Grid key={kpi.label} size={{ xs: 6, md: 3 }}>
             <Card sx={{ p: 2.5 }}>
@@ -116,7 +121,7 @@ export default function SchedulePage() {
                     <TableCell>Guest</TableCell>
                     <TableCell>Travel</TableCell>
                     <TableCell>Status</TableCell>
-                    <TableCell align="right">Price</TableCell>
+                    {showFinancials && <TableCell align="right">Price</TableCell>}
                   </TableRow>
                 </TableHead>
                 <TableBody>
@@ -130,7 +135,9 @@ export default function SchedulePage() {
                       <TableCell>{booking.guestName}</TableCell>
                       <TableCell>{formatDateForDisplay(booking.travelStartDate)}</TableCell>
                       <TableCell><BookingStatusChip status={resolveBookingStatus(booking)} /></TableCell>
-                      <TableCell align="right">{formatScheduleMoney(booking.packagePrice)}</TableCell>
+                      {showFinancials && (
+                        <TableCell align="right">{formatScheduleMoney(booking.packagePrice)}</TableCell>
+                      )}
                     </TableRow>
                   ))}
                 </TableBody>

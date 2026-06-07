@@ -26,6 +26,12 @@ import { prepareBookingsForList, filterBookingsByTravelPreset, filterBookingsByB
 import { filterBookingsByStatusTab } from '../utils/bookingStatusCounts';
 import { normalizeProfitSharePaid, normalizePartnerPoolPaid } from '../utils/partnerProfit';
 import {
+  getRoleCapabilities,
+  getScopedBookings,
+  canManagerAccessBooking,
+  getDefaultBookedBy,
+} from '../utils/accessControl';
+import {
   subscribeToPackages,
   subscribeToBookings,
   createPackage,
@@ -63,7 +69,21 @@ export function AppDataProvider({ authUser, userProfile, children }) {
   const bookingSyncStarted = useRef(false);
   const isBookingFormOpenRef = useRef(false);
 
-  const isAdmin = userProfile?.role !== 'viewer';
+  const capabilities = useMemo(
+    () => getRoleCapabilities(userProfile),
+    [userProfile]
+  );
+  const isAdmin = capabilities.isAdmin;
+  const scopedBookings = useMemo(
+    () => getScopedBookings(bookings, userProfile),
+    [bookings, userProfile]
+  );
+
+  useEffect(() => {
+    if (capabilities.isBookingManager && capabilities.bookedBy) {
+      setBookingBookedByFilter(capabilities.bookedBy);
+    }
+  }, [capabilities.isBookingManager, capabilities.bookedBy]);
 
   useEffect(() => {
     isBookingFormOpenRef.current =
@@ -135,7 +155,11 @@ export function AppDataProvider({ authUser, userProfile, children }) {
   }
 
   function resetBookingForm() {
-    setBookingForm({ ...emptyBookingForm, payments: [emptyPaymentRow()] });
+    setBookingForm({
+      ...emptyBookingForm,
+      payments: [emptyPaymentRow()],
+      bookedBy: getDefaultBookedBy(userProfile),
+    });
     setEditingBookingId(null);
   }
 
@@ -278,6 +302,10 @@ export function AppDataProvider({ authUser, userProfile, children }) {
 
   async function handleSavePackage(event) {
     event?.preventDefault?.();
+    if (!capabilities.canManagePackages) {
+      showToast('You do not have permission to manage packages.', 'error');
+      return;
+    }
     if (!packageForm.name.trim()) {
       showToast('Please enter package name.', 'error');
       return;
@@ -321,7 +349,7 @@ export function AppDataProvider({ authUser, userProfile, children }) {
 
   async function handleSaveBooking(event) {
     event?.preventDefault?.();
-    if (!isAdmin) {
+    if (!capabilities.canWriteBookings) {
       showToast('You have read-only access.', 'error');
       return;
     }
@@ -358,6 +386,20 @@ export function AppDataProvider({ authUser, userProfile, children }) {
       : { totalExpenses: null, totalProfit: null };
 
     const existingBooking = bookings.find((item) => item.id === editingBookingId);
+    if (
+      editingBookingId &&
+      capabilities.isBookingManager &&
+      existingBooking &&
+      !canManagerAccessBooking(existingBooking, userProfile)
+    ) {
+      showToast('You can only edit your own bookings.', 'error');
+      return;
+    }
+
+    const bookedBy = capabilities.isBookingManager
+      ? capabilities.bookedBy
+      : bookingForm.bookedBy;
+
     const bookingPayload = {
       guestName: bookingForm.guestName.trim(),
       whatsappNumber: bookingForm.whatsappNumber.trim(),
@@ -384,7 +426,7 @@ export function AppDataProvider({ authUser, userProfile, children }) {
       ...financialFields,
       specialNotes: bookingForm.specialNotes.trim(),
       bookingStatus,
-      bookedBy: bookingForm.bookedBy,
+      bookedBy,
       updatedByUid: authUser.uid,
       updatedByName: userProfile.fullName,
     };
@@ -444,6 +486,10 @@ export function AppDataProvider({ authUser, userProfile, children }) {
   }
 
   async function handleToggleProfitSharePaid(bookingId, shareKey, paid) {
+    if (!capabilities.canTogglePayouts) {
+      showToast('You do not have permission to update payouts.', 'error');
+      return;
+    }
     const booking = bookings.find((item) => item.id === bookingId);
     if (!booking) return;
     const profitSharePaid = {
@@ -463,6 +509,10 @@ export function AppDataProvider({ authUser, userProfile, children }) {
   }
 
   async function handleTogglePartnerPoolPaid(bookingId, poolId, paid) {
+    if (!capabilities.canTogglePayouts) {
+      showToast('You do not have permission to update payouts.', 'error');
+      return;
+    }
     const booking = bookings.find((item) => item.id === bookingId);
     if (!booking) return;
     const partnerPoolPaid = {
@@ -482,6 +532,10 @@ export function AppDataProvider({ authUser, userProfile, children }) {
   }
 
   function requestDeleteBooking(bookingId) {
+    if (!capabilities.canDeleteBookings) {
+      showToast('You do not have permission to delete bookings.', 'error');
+      return;
+    }
     setConfirmDialog({
       title: 'Delete booking',
       message: 'Are you sure you want to delete this booking? This cannot be undone.',
@@ -499,6 +553,10 @@ export function AppDataProvider({ authUser, userProfile, children }) {
   }
 
   function requestDeletePackage(packageId) {
+    if (!capabilities.canManagePackages) {
+      showToast('You do not have permission to delete packages.', 'error');
+      return;
+    }
     const linkedBookings = bookings.filter((b) => b.packageTemplateId === packageId);
     if (linkedBookings.length) {
       showToast('This package is linked with bookings and cannot be deleted.', 'error');
@@ -521,7 +579,11 @@ export function AppDataProvider({ authUser, userProfile, children }) {
   }
 
   function handleExportBookingsCsv() {
-    let list = filterBookingsByStatusTab(bookings, bookingStatusTab);
+    if (!capabilities.canExportFinancials) {
+      showToast('You do not have permission to export financial data.', 'error');
+      return;
+    }
+    let list = filterBookingsByStatusTab(scopedBookings, bookingStatusTab);
     list = prepareBookingsForList(list, {
       searchTerm: bookingSearch,
       statusFilter: 'All Status',
@@ -543,6 +605,14 @@ export function AppDataProvider({ authUser, userProfile, children }) {
   }
 
   function navigateToEditBooking(booking) {
+    if (!capabilities.canWriteBookings) {
+      showToast('You have read-only access.', 'error');
+      return;
+    }
+    if (capabilities.isBookingManager && !canManagerAccessBooking(booking, userProfile)) {
+      showToast('You can only edit your own bookings.', 'error');
+      return;
+    }
     loadBookingIntoForm(booking);
     navigate(`/bookings/${booking.id}/edit`);
   }
@@ -550,7 +620,9 @@ export function AppDataProvider({ authUser, userProfile, children }) {
   const value = {
     authUser,
     userProfile,
+    capabilities,
     isAdmin,
+    scopedBookings,
     packages,
     bookings,
     packageForm,

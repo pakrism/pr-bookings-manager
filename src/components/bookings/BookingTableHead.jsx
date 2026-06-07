@@ -9,8 +9,8 @@ const HEAD_CELLS = [
   { id: 'packageName', label: 'Package' },
   { id: 'travelStartDate', label: 'Travel' },
   { id: 'status', label: 'Status', width: 120 },
-  { id: 'packagePrice', label: 'Price', align: 'right', width: 110 },
-  { id: 'profit', label: 'Profit', align: 'right', width: 120 },
+  { id: 'packagePrice', label: 'Price', align: 'right', width: 110, financial: true },
+  { id: 'profit', label: 'Profit', align: 'right', width: 120, financial: true },
   { id: 'actions', label: '', width: 56, sortable: false },
 ];
 
@@ -21,17 +21,23 @@ export default function BookingTableHead({
   rowCount = 0,
   numSelected = 0,
   onSelectAll,
+  showFinancialColumns = true,
+  showSelection = true,
 }) {
+  const cells = HEAD_CELLS.filter((head) => showFinancialColumns || !head.financial);
+
   return (
     <TableRow>
-      <TableCell padding="checkbox">
-        <Checkbox
-          indeterminate={numSelected > 0 && numSelected < rowCount}
-          checked={rowCount > 0 && numSelected === rowCount}
-          onChange={(e) => onSelectAll?.(e.target.checked)}
-        />
-      </TableCell>
-      {HEAD_CELLS.map((head) => (
+      {showSelection && (
+        <TableCell padding="checkbox">
+          <Checkbox
+            indeterminate={numSelected > 0 && numSelected < rowCount}
+            checked={rowCount > 0 && numSelected === rowCount}
+            onChange={(e) => onSelectAll?.(e.target.checked)}
+          />
+        </TableCell>
+      )}
+      {cells.map((head) => (
         <TableCell
           key={head.id}
           align={head.align || 'left'}

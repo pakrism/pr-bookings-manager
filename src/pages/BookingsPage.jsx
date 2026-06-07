@@ -43,6 +43,8 @@ export default function BookingsPage() {
   const navigate = useNavigate();
   const {
     bookings,
+    scopedBookings,
+    capabilities,
     bookingSearch,
     setBookingSearch,
     bookingStatusTab,
@@ -57,7 +59,6 @@ export default function BookingsPage() {
     setBookingCustomEnd,
     bookingBookedByFilter,
     setBookingBookedByFilter,
-    isAdmin,
     handleExportBookingsCsv,
     setShowRemindersModal,
     navigateToBooking,
@@ -77,10 +78,13 @@ export default function BookingsPage() {
     defaultRowsPerPage: 10,
   });
 
-  const statusTabs = useMemo(() => getBookingStatusTabs(bookings), [bookings]);
+  const showFinancialColumns = capabilities.canViewFinancialFields;
+  const showSelection = capabilities.canBulkEditBookings || capabilities.canDeleteBookings;
+
+  const statusTabs = useMemo(() => getBookingStatusTabs(scopedBookings), [scopedBookings]);
 
   const filtered = useMemo(() => {
-    let list = filterBookingsByStatusTab(bookings, bookingStatusTab);
+    let list = filterBookingsByStatusTab(scopedBookings, bookingStatusTab);
     list = prepareBookingsForList(list, {
       searchTerm: bookingSearch,
       statusFilter: 'All Status',
@@ -95,7 +99,7 @@ export default function BookingsPage() {
     list = filterBookingsByBookedBy(list, bookingBookedByFilter);
     return list;
   }, [
-    bookings,
+    scopedBookings,
     bookingStatusTab,
     bookingSearch,
     bookingDatePreset,
@@ -147,7 +151,9 @@ export default function BookingsPage() {
   }
 
   function handleExportSelected() {
-    downloadBookingsCsv(selectedBookings);
+    downloadBookingsCsv(selectedBookings, 'pakrism-bookings-selected.csv', {
+      includeFinancials: capabilities.canExportFinancials,
+    });
     showToast('Selected bookings exported.');
   }
 
@@ -180,7 +186,7 @@ export default function BookingsPage() {
           title="No bookings yet"
           description="Create your first booking to start tracking records."
           action={
-            isAdmin && (
+            capabilities.canWriteBookings && (
               <SecondaryButton onClick={() => navigate('/bookings/new')}>
                 + New Booking
               </SecondaryButton>
@@ -196,12 +202,16 @@ export default function BookingsPage() {
       <CustomBreadcrumbs links={[{ name: 'Dashboard', href: '/dashboard' }, { name: 'Bookings' }, { name: 'List' }]} />
       <PageHeader
         title="List"
-        subtitle={`${filtered.length} of ${bookings.length} bookings`}
+        subtitle={`${filtered.length} of ${scopedBookings.length} bookings`}
         action={
           <>
-            <OutlineButton onClick={() => setShowRemindersModal(true)}>Departure reminders</OutlineButton>
-            <OutlineButton onClick={handleExportBookingsCsv}>Export CSV</OutlineButton>
-            {isAdmin && (
+            {capabilities.isAdmin && (
+              <OutlineButton onClick={() => setShowRemindersModal(true)}>Departure reminders</OutlineButton>
+            )}
+            {capabilities.canExportFinancials && (
+              <OutlineButton onClick={handleExportBookingsCsv}>Export CSV</OutlineButton>
+            )}
+            {capabilities.canWriteBookings && (
               <SecondaryButton onClick={() => navigate('/bookings/new')}>+ New Booking</SecondaryButton>
             )}
           </>
@@ -212,7 +222,7 @@ export default function BookingsPage() {
         <TableTabs tabs={statusTabs} value={bookingStatusTab} onChange={setBookingStatusTab} />
 
         <BookingTableToolbar
-          bookings={bookings}
+          bookings={scopedBookings}
           searchValue={bookingSearch}
           onSearchChange={setBookingSearch}
           datePreset={bookingDatePreset}
@@ -225,12 +235,13 @@ export default function BookingsPage() {
           onCustomEndChange={setBookingCustomEnd}
           bookedByFilter={bookingBookedByFilter}
           onBookedByChange={setBookingBookedByFilter}
+          lockBookedByFilter={capabilities.isBookingManager}
         />
 
-        {table.selected.length > 0 && (
+        {showSelection && table.selected.length > 0 && (
           <BookingSelectionBar
             metrics={selectionMetrics}
-            canEdit={isAdmin}
+            canEdit={capabilities.canBulkEditBookings}
             onClear={() => table.setSelected([])}
             onBulkEdit={() => setBulkEditOpen(true)}
             onExportSelected={handleExportSelected}
@@ -247,6 +258,8 @@ export default function BookingsPage() {
                 onSort={table.onSort}
                 rowCount={sorted.length}
                 numSelected={selectedBookings.length}
+                showFinancialColumns={showFinancialColumns}
+                showSelection={showSelection}
                 onSelectAll={(checked) =>
                   table.onSelectAllRows(
                     checked,
@@ -264,9 +277,11 @@ export default function BookingsPage() {
                   onSelectRow={table.onSelectRow}
                   onView={navigateToBooking}
                   onEdit={navigateToEditBooking}
-                  onDelete={requestDeleteBooking}
-                  onQuickUpdate={setQuickUpdateBooking}
-                  canEdit={isAdmin}
+                  onDelete={capabilities.canDeleteBookings ? requestDeleteBooking : undefined}
+                  onQuickUpdate={capabilities.isAdmin ? setQuickUpdateBooking : undefined}
+                  canEdit={capabilities.canWriteBookings}
+                  showFinancialColumns={showFinancialColumns}
+                  showSelection={showSelection}
                 />
               ))}
             </TableBody>

@@ -14,18 +14,38 @@ service cloud.firestore {
       return signedIn() && userDoc().data.isActive == true;
     }
 
+    function role() {
+      return userDoc().data.role;
+    }
+
     function isAdmin() {
-      return isActiveUser() && userDoc().data.role != 'viewer';
+      return isActiveUser() && (role() == 'admin' || role() == null || role() == '');
+    }
+
+    function isBookingManager() {
+      return isActiveUser() && role() == 'booking_manager';
+    }
+
+    function managerBookedBy() {
+      return userDoc().data.bookedBy;
     }
 
     match /users/{userId} {
-      allow read: if signedIn() && request.auth.uid == userId;
+      allow read: if isAdmin() || (signedIn() && request.auth.uid == userId);
       allow write: if false;
     }
 
     match /bookings/{bookingId} {
       allow read: if isActiveUser();
-      allow create, update, delete: if isAdmin();
+      allow create: if isAdmin() || (
+        isBookingManager()
+        && request.resource.data.bookedBy == managerBookedBy()
+      );
+      allow update, delete: if isAdmin() || (
+        isBookingManager()
+        && resource.data.bookedBy == managerBookedBy()
+        && request.resource.data.bookedBy == managerBookedBy()
+      );
     }
 
     match /packages/{packageId} {
@@ -34,7 +54,8 @@ service cloud.firestore {
     }
 
     match /counters/{counterId} {
-      allow read, write: if isAdmin();
+      allow read: if isAdmin() || isBookingManager();
+      allow write: if isAdmin() || isBookingManager();
     }
   }
 }

@@ -6,6 +6,7 @@ import { useBookingFromParams } from '../context/AppDataProvider';
 import CustomBreadcrumbs from '../components/ui/CustomBreadcrumbs';
 import PageHeader from '../components/ui/PageHeader';
 import BookingForm from '../components/bookings/BookingForm';
+import { canManagerAccessBooking } from '../utils/accessControl';
 
 export default function BookingFormPage() {
   const navigate = useNavigate();
@@ -17,7 +18,8 @@ export default function BookingFormPage() {
     bookingForm,
     editingBookingId,
     isSavingBooking,
-    isAdmin,
+    capabilities,
+    userProfile,
     loadBookingIntoForm,
     resetBookingForm,
     handleBookingInputChange,
@@ -35,6 +37,14 @@ export default function BookingFormPage() {
       resetBookingForm();
     }
   }, [id, booking?.id]);
+
+  if (isEdit && booking && capabilities.isBookingManager && !canManagerAccessBooking(booking, userProfile)) {
+    return (
+      <Box sx={{ py: 6, textAlign: 'center' }}>
+        You can only edit your own bookings.
+      </Box>
+    );
+  }
 
   const breadcrumbs = [
     { name: 'Dashboard', href: '/dashboard' },
@@ -63,7 +73,8 @@ export default function BookingFormPage() {
         onSubmit={handleSaveBooking}
         onClose={() => navigate(isEdit && id ? `/bookings/${id}` : '/bookings')}
         isSubmitting={isSavingBooking}
-        readOnly={!isAdmin}
+        readOnly={!capabilities.canWriteBookings}
+        lockBookedBy={capabilities.isBookingManager}
       />
     </Box>
   );

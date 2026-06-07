@@ -25,6 +25,7 @@ export default function BookingTableToolbar({
   onCustomEndChange,
   bookedByFilter,
   onBookedByChange,
+  lockBookedByFilter = false,
 }) {
   const monthOptions = getTravelMonthOptions(bookings);
   const hint = getTravelPresetLabel(datePreset, travelMonth, customStart, customEnd);
@@ -94,6 +95,7 @@ export default function BookingTableToolbar({
             value={bookedByFilter || 'all'}
             onChange={(e) => onBookedByChange?.(e.target.value)}
             sx={{ minWidth: 150 }}
+            disabled={lockBookedByFilter}
           >
             <MenuItem value="all">All</MenuItem>
             {BOOKED_BY_OPTIONS.map((option) => (

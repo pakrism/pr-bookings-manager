@@ -20,22 +20,33 @@ import {
   filterBookingsForFinance,
 } from '../utils/revenueMetrics';
 import { downloadRevenueCsv } from '../utils/exportRevenueCsv';
+import { getDefaultFinanceTab, getManagerPoolId, getRoleCapabilities } from '../utils/accessControl';
 
 export default function FinancePage({
   bookings,
+  userProfile,
   onViewBooking,
   onExportToast,
   canEdit = false,
   onToggleProfitSharePaid,
   onTogglePartnerPoolPaid,
 }) {
-  const [activeTab, setActiveTab] = useState('overview');
+  const capabilities = useMemo(() => getRoleCapabilities(userProfile), [userProfile]);
+  const managerPoolId = getManagerPoolId(userProfile);
+  const [activeTab, setActiveTab] = useState(() => getDefaultFinanceTab(userProfile));
   const [preset, setPreset] = useState('this_month');
   const [customStart, setCustomStart] = useState('');
   const [customEnd, setCustomEnd] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [bookedByFilter, setBookedByFilter] = useState('all');
   const [payoutFilter, setPayoutFilter] = useState('all');
+
+  const visibleTabs = useMemo(() => {
+    if (capabilities.isBookingManager && managerPoolId) {
+      return REVENUE_TABS.filter((tab) => tab.id === managerPoolId);
+    }
+    return REVENUE_TABS;
+  }, [capabilities.isBookingManager, managerPoolId]);
 
   const financeFilters = useMemo(
     () => ({
@@ -72,6 +83,9 @@ export default function FinancePage({
   }
 
   function handleOpenPoolTab(poolId) {
+    if (capabilities.isBookingManager && managerPoolId && poolId !== managerPoolId) {
+      return;
+    }
     setActiveTab(poolId);
   }
 
@@ -116,7 +130,11 @@ export default function FinancePage({
 
       <FinanceSummaryStrip metrics={metrics} />
 
-      <FinancePoolCards metrics={metrics} onOpenPoolTab={handleOpenPoolTab} />
+      <FinancePoolCards
+        metrics={metrics}
+        onOpenPoolTab={handleOpenPoolTab}
+        visiblePoolIds={capabilities.isBookingManager && managerPoolId ? [managerPoolId] : null}
+      />
 
       <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}>
         <Tabs
@@ -124,7 +142,7 @@ export default function FinancePage({
           onChange={(_event, value) => setActiveTab(value)}
           aria-label="Finance sections"
         >
-          {REVENUE_TABS.map((tab) => (
+          {visibleTabs.map((tab) => (
             <Tab key={tab.id} value={tab.id} label={tab.label} />
           ))}
         </Tabs>
@@ -137,13 +155,21 @@ export default function FinancePage({
         </Alert>
       )}
 
-      {activeTab === 'overview' && (
+      {activeTab === 'overview' && capabilities.isAdmin && (
         <RevenueOverviewTab metrics={metrics} bookings={tableBookings} />
       )}
 
-      {activeTab === 'zohaib' && <RevenuePoolTab poolId="zohaib" {...poolTabProps} />}
+      {activeTab === 'zohaib' && (!capabilities.isBookingManager || managerPoolId === 'zohaib') && (
+        <RevenuePoolTab poolId="zohaib" {...poolTabProps} />
+      )}
 
-      {activeTab === 'pervaiz' && <RevenuePoolTab poolId="pervaiz" {...poolTabProps} />}
+      {activeTab === 'pervaiz' && (!capabilities.isBookingManager || managerPoolId === 'pervaiz') && (
+        <RevenuePoolTab poolId="pervaiz" {...poolTabProps} />
+      )}
+
+      {visibleTabs.length === 0 && (
+        <Typography color="text.secondary">No finance view configured for this account.</Typography>
+      )}
     </Box>
   );
 }

@@ -21,6 +21,7 @@ import {
 } from '@mui/material';
 import Logo from '../components/logo/Logo';
 import { useAppData } from '../context/AppDataContext';
+import { canAccessRoute, getRoleLabel } from '../utils/accessControl';
 
 const SIDEBAR_WIDTH = 272;
 
@@ -30,15 +31,17 @@ const navItems = [
   { path: '/packages', label: 'Packages', icon: 'ri-map-2-line', badgeKey: 'packages' },
   { path: '/schedule', label: 'Schedule', icon: 'ri-time-line' },
   { path: '/finance', label: 'Finance', icon: 'ri-money-dollar-circle-line' },
+  { path: '/users', label: 'Users', icon: 'ri-group-line' },
 ];
 
 function SidebarContent({ onClose, onSignOut }) {
-  const { userProfile, bookings, packages } = useAppData();
+  const { userProfile, scopedBookings, packages } = useAppData();
   const location = useLocation();
 
-  const badges = { bookings: bookings.length, packages: packages.length };
+  const badges = { bookings: scopedBookings.length, packages: packages.length };
   const initial = userProfile?.fullName?.trim()?.[0]?.toUpperCase() || 'U';
-  const roleLabel = userProfile?.role === 'viewer' ? 'Read-only' : 'Admin';
+  const roleLabel = getRoleLabel(userProfile?.role);
+  const visibleNavItems = navItems.filter((item) => canAccessRoute(item.path, userProfile));
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%', p: 2 }}>
@@ -48,7 +51,7 @@ function SidebarContent({ onClose, onSignOut }) {
       <Divider sx={{ mb: 2 }} />
 
       <List disablePadding sx={{ flex: 1 }}>
-        {navItems.map((item) => {
+        {visibleNavItems.map((item) => {
           const active = location.pathname.startsWith(item.path);
           const badgeCount = item.badgeKey ? badges[item.badgeKey] : 0;
 

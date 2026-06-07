@@ -12,6 +12,7 @@ import Chip from '@mui/material/Chip';
 import { useAppData } from '../context/AppDataContext';
 import { useBookingFromParams } from '../context/AppDataProvider';
 import CustomBreadcrumbs from '../components/ui/CustomBreadcrumbs';
+import EmptyContent from '../components/ui/EmptyContent';
 import BookingStatusChip from '../components/common/BookingStatusChip';
 import { DarkButton, OutlineButton } from '../components/common/BrandButton';
 import ProfitShareBreakdown from '../components/profit/ProfitShareBreakdown';
@@ -26,6 +27,7 @@ import {
 } from '../utils/payments';
 import { generateInvoicePDF } from '../utils/invoice';
 import { formatAuditTime } from '../utils/dashboardMetrics';
+import { canManagerAccessBooking } from '../utils/accessControl';
 import BookingQuickUpdateDialog from '../components/bookings/BookingQuickUpdateDialog';
 
 function DetailCard({ title, children, onEdit }) {
@@ -77,7 +79,8 @@ export default function BookingDetailPage() {
   const navigate = useNavigate();
   const booking = useBookingFromParams();
   const {
-    isAdmin,
+    capabilities,
+    userProfile,
     navigateToEditBooking,
     setQuickUpdateBooking,
     quickUpdateBooking,
@@ -96,6 +99,22 @@ export default function BookingDetailPage() {
       </Box>
     );
   }
+
+  if (capabilities.isBookingManager && !canManagerAccessBooking(booking, userProfile)) {
+    return (
+      <EmptyContent
+        title="Access restricted"
+        description="You can only view bookings assigned to you."
+        action={
+          <OutlineButton onClick={() => navigate('/bookings')}>Back to list</OutlineButton>
+        }
+        sx={{ py: 8 }}
+      />
+    );
+  }
+
+  const showFinancials = capabilities.canViewFinancialFields;
+  const showGuestContact = capabilities.canViewGuestContact;
 
   const resolvedStatus = resolveBookingStatus(booking);
   const ledgerRows = getLedgerWithRunningCash(booking.payments || []);
@@ -132,15 +151,17 @@ export default function BookingDetailPage() {
           </Box>
         </Box>
         <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-          {isAdmin && (
+          {capabilities.isAdmin && (
             <OutlineButton onClick={() => setQuickUpdateBooking(booking)}>
               Quick update
             </OutlineButton>
           )}
-          <OutlineButton onClick={() => generateInvoicePDF(booking)}>
-            Print invoice
-          </OutlineButton>
-          {isAdmin && (
+          {showFinancials && (
+            <OutlineButton onClick={() => generateInvoicePDF(booking)}>
+              Print invoice
+            </OutlineButton>
+          )}
+          {capabilities.canWriteBookings && (
             <DarkButton onClick={() => navigateToEditBooking(booking)}>
               Edit
             </DarkButton>
@@ -150,7 +171,7 @@ export default function BookingDetailPage() {
 
       <Grid container spacing={3}>
         <Grid size={{ xs: 12, md: 8 }}>
-          <DetailCard title="Details" onEdit={isAdmin ? () => navigateToEditBooking(booking) : null}>
+          <DetailCard title="Details" onEdit={capabilities.canWriteBookings ? () => navigateToEditBooking(booking) : null}>
             <Box sx={{ display: 'flex', gap: 2, mb: 2 }}>
               {pkg && (
                 <Box
@@ -167,7 +188,9 @@ export default function BookingDetailPage() {
               </Box>
             </Box>
             <Divider sx={{ my: 2 }} />
-            <InfoRow label="Package price" value={formatCurrency(booking.packagePrice)} />
+            {showFinancials && (
+              <InfoRow label="Package price" value={formatCurrency(booking.packagePrice)} />
+            )}
             <InfoRow label="Travel dates" value={`${formatDateForDisplay(booking.travelStartDate)} → ${formatDateForDisplay(booking.travelEndDate)}`} />
             <InfoRow label="Tour type" value={booking.type || '-'} />
             <InfoRow label="Persons" value={formatPaxBreakdown(booking)} />
@@ -179,33 +202,35 @@ export default function BookingDetailPage() {
             )}
           </DetailCard>
 
-          <DetailCard title="History">
-            <Box sx={{ pl: 1 }}>
-              {(booking.auditLog || []).slice().reverse().map((entry, index) => (
-                <Box key={index} sx={{ display: 'flex', gap: 2, pb: 2, position: 'relative' }}>
-                  <Box
-                    sx={{
-                      width: 10,
-                      height: 10,
-                      borderRadius: '50%',
-                      bgcolor: index === 0 ? 'primary.main' : 'grey.400',
-                      mt: 0.75,
-                      flexShrink: 0,
-                    }}
-                  />
-                  <Box>
-                    <Typography variant="subtitle2">{entry.summary || entry.action}</Typography>
-                    <Typography variant="caption" color="text.secondary">
-                      {entry.byName || 'System'} · {formatAuditTime(entry.at || entry.timestamp)}
-                    </Typography>
+          {capabilities.isAdmin && (
+            <DetailCard title="History">
+              <Box sx={{ pl: 1 }}>
+                {(booking.auditLog || []).slice().reverse().map((entry, index) => (
+                  <Box key={index} sx={{ display: 'flex', gap: 2, pb: 2, position: 'relative' }}>
+                    <Box
+                      sx={{
+                        width: 10,
+                        height: 10,
+                        borderRadius: '50%',
+                        bgcolor: index === 0 ? 'primary.main' : 'grey.400',
+                        mt: 0.75,
+                        flexShrink: 0,
+                      }}
+                    />
+                    <Box>
+                      <Typography variant="subtitle2">{entry.summary || entry.action}</Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        {entry.byName || 'System'} · {formatAuditTime(entry.at || entry.timestamp)}
+                      </Typography>
+                    </Box>
                   </Box>
-                </Box>
-              ))}
-              {!booking.auditLog?.length && (
-                <Typography variant="body2" color="text.secondary">No history yet.</Typography>
-              )}
-            </Box>
-          </DetailCard>
+                ))}
+                {!booking.auditLog?.length && (
+                  <Typography variant="body2" color="text.secondary">No history yet.</Typography>
+                )}
+              </Box>
+            </DetailCard>
+          )}
         </Grid>
 
         <Grid size={{ xs: 12, md: 4 }}>
@@ -216,7 +241,7 @@ export default function BookingDetailPage() {
               </Avatar>
               <Box>
                 <Typography fontWeight={700}>{booking.guestName}</Typography>
-                {booking.whatsappNumber && (
+                {showGuestContact && booking.whatsappNumber && (
                   <Typography variant="body2" color="text.secondary">{booking.whatsappNumber}</Typography>
                 )}
               </Box>
@@ -229,74 +254,76 @@ export default function BookingDetailPage() {
             <InfoRow label="Accommodation" value={booking.accommodation} />
           </DetailCard>
 
-          <DetailCard title="Payment">
-            <InfoRow label="Package price" value={formatCurrency(booking.packagePrice)} />
-            <InfoRow label="Total paid" value={formatCurrency(totalPaid)} />
-            <InfoRow label="Balance due" value={formatCurrency(balance)} />
-            {totalExpenses != null && (
-              <InfoRow label="Total expenses" value={formatCurrency(totalExpenses)} />
-            )}
-            {profit != null && (
-              <InfoRow label="Profit" value={formatCurrency(profit)} />
-            )}
-            <InfoRow label="Net cash on hand" value={formatCurrency(netCash)} />
+          {showFinancials && (
+            <DetailCard title="Payment">
+              <InfoRow label="Package price" value={formatCurrency(booking.packagePrice)} />
+              <InfoRow label="Total paid" value={formatCurrency(totalPaid)} />
+              <InfoRow label="Balance due" value={formatCurrency(balance)} />
+              {totalExpenses != null && (
+                <InfoRow label="Total expenses" value={formatCurrency(totalExpenses)} />
+              )}
+              {profit != null && (
+                <InfoRow label="Profit" value={formatCurrency(profit)} />
+              )}
+              <InfoRow label="Net cash on hand" value={formatCurrency(netCash)} />
 
-            {ledgerRows.length > 0 && (
-              <Box sx={{ mt: 2 }}>
-                <Typography variant="subtitle2" sx={{ mb: 1 }}>
-                  Ledger
-                </Typography>
-                {ledgerRows.map((entry) => (
-                  <Box
-                    key={entry.id}
-                    sx={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      gap: 1,
-                      py: 0.75,
-                      borderBottom: 1,
-                      borderColor: 'divider',
-                    }}
-                  >
-                    <Box sx={{ minWidth: 0 }}>
-                      <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 0.25 }}>
-                        <Chip
-                          size="small"
-                          label={entry.type === 'credit' ? 'Credit' : 'Debit'}
-                          color={entry.type === 'credit' ? 'success' : 'warning'}
-                          variant="outlined"
-                        />
-                        <Typography variant="caption" color="text.secondary">
-                          {formatDateForDisplay(entry.paidAt)}
+              {ledgerRows.length > 0 && (
+                <Box sx={{ mt: 2 }}>
+                  <Typography variant="subtitle2" sx={{ mb: 1 }}>
+                    Ledger
+                  </Typography>
+                  {ledgerRows.map((entry) => (
+                    <Box
+                      key={entry.id}
+                      sx={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        gap: 1,
+                        py: 0.75,
+                        borderBottom: 1,
+                        borderColor: 'divider',
+                      }}
+                    >
+                      <Box sx={{ minWidth: 0 }}>
+                        <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 0.25 }}>
+                          <Chip
+                            size="small"
+                            label={entry.type === 'credit' ? 'Credit' : 'Debit'}
+                            color={entry.type === 'credit' ? 'success' : 'warning'}
+                            variant="outlined"
+                          />
+                          <Typography variant="caption" color="text.secondary">
+                            {formatDateForDisplay(entry.paidAt)}
+                          </Typography>
+                        </Stack>
+                        <Typography variant="body2">
+                          {entry.note || (entry.type === 'credit' ? 'Client payment' : 'Expense')}
                         </Typography>
-                      </Stack>
-                      <Typography variant="body2">
-                        {entry.note || (entry.type === 'credit' ? 'Client payment' : 'Expense')}
-                      </Typography>
+                      </Box>
+                      <Box sx={{ textAlign: 'right' }}>
+                        <Typography variant="body2" fontWeight={700}>
+                          {entry.type === 'credit' ? '+' : '-'}
+                          {formatCurrency(entry.amount)}
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          Net {formatCurrency(entry.runningCash)}
+                        </Typography>
+                      </Box>
                     </Box>
-                    <Box sx={{ textAlign: 'right' }}>
-                      <Typography variant="body2" fontWeight={700}>
-                        {entry.type === 'credit' ? '+' : '-'}
-                        {formatCurrency(entry.amount)}
-                      </Typography>
-                      <Typography variant="caption" color="text.secondary">
-                        Net {formatCurrency(entry.runningCash)}
-                      </Typography>
-                    </Box>
-                  </Box>
-                ))}
-              </Box>
-            )}
-          </DetailCard>
+                  ))}
+                </Box>
+              )}
+            </DetailCard>
+          )}
 
-          {hasBookingFinancials(booking) && (
+          {showFinancials && hasBookingFinancials(booking) && (
             <DetailCard title="Profit">
               <InfoRow label="Profit" value={formatCurrency(profit)} />
               <Box sx={{ mt: 2 }}>
                 <ProfitShareBreakdown
                   booking={booking}
-                  canEdit={isAdmin}
+                  canEdit={capabilities.canTogglePayouts}
                   onTogglePaid={(shareKey, paid) =>
                     handleToggleProfitSharePaid(booking.id, shareKey, paid)
                   }

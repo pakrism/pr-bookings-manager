@@ -67,9 +67,10 @@ function EmptyChartMessage({ message = 'No data yet' }) {
 
 export default function DashboardPage() {
   const navigate = useNavigate();
-  const { bookings, userProfile, isAdmin } = useAppData();
-  const metrics = useMemo(() => computeDashboardMetrics(bookings), [bookings]);
-  const statusCounts = useMemo(() => getBookingStatusCounts(bookings), [bookings]);
+  const { scopedBookings, userProfile, capabilities } = useAppData();
+  const metrics = useMemo(() => computeDashboardMetrics(scopedBookings), [scopedBookings]);
+  const statusCounts = useMemo(() => getBookingStatusCounts(scopedBookings), [scopedBookings]);
+  const showFinancials = capabilities.canViewFinancialFields;
   const maxStatus = Math.max(...Object.values(statusCounts).filter((_, i, arr) => i > 0), 1);
 
   const statusChartOptions = useChart({
@@ -119,25 +120,29 @@ export default function DashboardPage() {
         <Typography variant="body2" color="text.secondary">
           Overview for {userProfile?.fullName?.split(' ')[0] || 'team'}
         </Typography>
-        {isAdmin && (
+        {capabilities.canWriteBookings && (
           <SecondaryButton onClick={() => navigate('/bookings/new')}>+ New Booking</SecondaryButton>
         )}
       </Box>
 
       <Grid container spacing={3}>
-        <Grid size={{ xs: 12, md: 3 }}>
-          <DarkIncomeCard
-            title="Total revenue"
-            total={metrics.kpiWidgets.find((w) => w.id === 'revenue')?.total || formatCurrency(0)}
-            percent={metrics.kpiWidgets.find((w) => w.id === 'revenue')?.percent}
-            chartSeries={metrics.kpiWidgets.find((w) => w.id === 'revenue')?.chart?.series}
-          />
-        </Grid>
-        {metrics.kpiWidgets.filter((w) => w.id !== 'revenue').map((widget) => (
-          <Grid key={widget.id} size={{ xs: 12, sm: 6, md: 3 }}>
-            <AnalyticsWidgetSummary {...widget} color={widget.id === 'outstanding' ? 'warning' : widget.id === 'profit' ? 'success' : 'info'} />
-          </Grid>
-        ))}
+        {showFinancials && (
+          <>
+            <Grid size={{ xs: 12, md: 3 }}>
+              <DarkIncomeCard
+                title="Total revenue"
+                total={metrics.kpiWidgets.find((w) => w.id === 'revenue')?.total || formatCurrency(0)}
+                percent={metrics.kpiWidgets.find((w) => w.id === 'revenue')?.percent}
+                chartSeries={metrics.kpiWidgets.find((w) => w.id === 'revenue')?.chart?.series}
+              />
+            </Grid>
+            {metrics.kpiWidgets.filter((w) => w.id !== 'revenue').map((widget) => (
+              <Grid key={widget.id} size={{ xs: 12, sm: 6, md: 3 }}>
+                <AnalyticsWidgetSummary {...widget} color={widget.id === 'outstanding' ? 'warning' : widget.id === 'profit' ? 'success' : 'info'} />
+              </Grid>
+            ))}
+          </>
+        )}
 
         <Grid size={{ xs: 12, md: 4 }}>
           <ChartCard title="Booking status" subheader="Distribution">
@@ -173,6 +178,7 @@ export default function DashboardPage() {
           </ChartCard>
         </Grid>
 
+        {showFinancials && (
         <Grid size={{ xs: 12, md: 6, lg: 8 }}>
           <ChartCard title="Monthly revenue" subheader="Last 8 months (departure month)">
             {metrics.monthlyRevenue.some((m) => m.revenue > 0) ? (
@@ -187,6 +193,7 @@ export default function DashboardPage() {
             )}
           </ChartCard>
         </Grid>
+        )}
 
         <Grid size={{ xs: 12, md: 6, lg: 6 }}>
           <ChartCard title="Top packages" subheader="By booking count">
@@ -261,6 +268,7 @@ export default function DashboardPage() {
           </ChartCard>
         </Grid>
 
+        {capabilities.isAdmin && (
         <Grid size={{ xs: 12, md: 6, lg: 4 }}>
           <ChartCard title="Activity timeline" subheader="Recent audit log">
             {metrics.timelineEntries.length ? (
@@ -284,6 +292,7 @@ export default function DashboardPage() {
             )}
           </ChartCard>
         </Grid>
+        )}
 
         <Grid size={{ xs: 12 }}>
           <Card sx={{ p: 0 }}>
@@ -302,7 +311,7 @@ export default function DashboardPage() {
                     <TableCell>Package</TableCell>
                     <TableCell>Travel</TableCell>
                     <TableCell>Status</TableCell>
-                    <TableCell align="right">Price</TableCell>
+                    {showFinancials && <TableCell align="right">Price</TableCell>}
                   </TableRow>
                 </TableHead>
                 <TableBody>
@@ -323,14 +332,16 @@ export default function DashboardPage() {
                         <TableCell>
                           <BookingStatusChip status={resolveBookingStatus(booking)} />
                         </TableCell>
-                        <TableCell align="right">
-                          {formatCurrency(booking.packagePrice)}
-                        </TableCell>
+                        {showFinancials && (
+                          <TableCell align="right">
+                            {formatCurrency(booking.packagePrice)}
+                          </TableCell>
+                        )}
                       </TableRow>
                     ))
                   ) : (
                     <TableRow>
-                      <TableCell colSpan={6} align="center" sx={{ py: 4, color: 'text.secondary' }}>
+                      <TableCell colSpan={showFinancials ? 6 : 5} align="center" sx={{ py: 4, color: 'text.secondary' }}>
                         No bookings yet
                       </TableCell>
                     </TableRow>

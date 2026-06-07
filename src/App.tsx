@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { logoutUser, loginWithEmail, watchAuth, getApprovedUserProfile } from './lib/auth';
+import { logoutUser, loginWithEmail, watchAuth, getApprovedUserProfile, subscribeToUserProfile } from './lib/auth';
 import { AppDataProvider } from './context/AppDataProvider';
 import AppRoutes from './routes/AppRoutes';
 import LoginPage from './components/auth/LoginPage';
@@ -48,6 +48,23 @@ function App() {
 
     return () => unsubscribe();
   }, []);
+
+  useEffect(() => {
+    if (!authUser?.uid) return undefined;
+
+    const unsubscribe = subscribeToUserProfile(authUser.uid, (profile) => {
+      if (!profile || profile.isActive !== true) {
+        logoutUser();
+        setAuthError('Access not approved.');
+        setAuthUser(null);
+        setUserProfile(null);
+        return;
+      }
+      setUserProfile(profile);
+    });
+
+    return () => unsubscribe();
+  }, [authUser?.uid]);
 
   async function handleLogin(email, password) {
     setLoginLoading(true);
