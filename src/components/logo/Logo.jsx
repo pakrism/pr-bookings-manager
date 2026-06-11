@@ -8,7 +8,7 @@ export default function Logo({ collapsed = false, sx = {} }) {
         component="img"
         src={logoSrc}
         alt="Pakrism"
-        sx={{ width: collapsed ? 36 : 36, height: collapsed ? 36 : 36 }}
+        sx={{ width: collapsed ? 40 : 40, height: collapsed ? 40 : 40 }}
       />
       {!collapsed && (
         <Box

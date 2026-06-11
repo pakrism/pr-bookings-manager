@@ -61,3 +61,16 @@ npm run dev
 ```bash
 npm run build
 ```
+
+## Netlify deployment
+
+The app is hosted at `https://pr-bms.netlify.app`. SPA routing uses [`public/_redirects`](public/_redirects) (`/* /index.html 200`) so direct URLs like `/bookings` work after deploy.
+
+After pushing, Netlify rebuilds automatically. **User management requires Cloud Functions** to be deployed with CORS for the Netlify origin — run from the repo root:
+
+```bash
+cd functions && npm install && cd ..
+firebase deploy --only functions
+```
+
+(`.firebaserc` sets the default project to `pakrism-bookings`.)

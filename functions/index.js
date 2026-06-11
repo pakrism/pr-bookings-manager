@@ -10,6 +10,11 @@ const VALID_ROLES = new Set(['admin', 'booking_manager', 'viewer']);
 const MANAGER_BOOKED_BY = new Set(['Zohaib', 'Pervaiz']);
 const MANAGER_POOL_IDS = new Set(['zohaib', 'pervaiz']);
 
+const callableOptions = {
+  region: 'us-central1',
+  cors: ['https://pr-bms.netlify.app', /^http:\/\/localhost(:\d+)?$/],
+};
+
 async function assertAdmin(context) {
   if (!context.auth?.uid) {
     throw new HttpsError('unauthenticated', 'You must be signed in.');
@@ -73,7 +78,7 @@ function sanitizeUserPayload(data, { partial = false } = {}) {
   return payload;
 }
 
-exports.listUsers = onCall(async (request) => {
+exports.listUsers = onCall(callableOptions, async (request) => {
   await assertAdmin(request);
 
   const snapshot = await db.collection('users').get();
@@ -85,7 +90,7 @@ exports.listUsers = onCall(async (request) => {
     .sort((a, b) => String(a.email || '').localeCompare(String(b.email || '')));
 });
 
-exports.createUser = onCall(async (request) => {
+exports.createUser = onCall(callableOptions, async (request) => {
   await assertAdmin(request);
 
   const { email, password, sendPasswordReset } = request.data || {};
@@ -133,7 +138,7 @@ exports.createUser = onCall(async (request) => {
   return { uid: userRecord.uid, email: normalizedEmail };
 });
 
-exports.updateUser = onCall(async (request) => {
+exports.updateUser = onCall(callableOptions, async (request) => {
   await assertAdmin(request);
 
   const { uid } = request.data || {};
@@ -173,7 +178,7 @@ exports.updateUser = onCall(async (request) => {
   return { uid };
 });
 
-exports.resetUserPassword = onCall(async (request) => {
+exports.resetUserPassword = onCall(callableOptions, async (request) => {
   await assertAdmin(request);
 
   const email = String(request.data?.email || '').trim().toLowerCase();

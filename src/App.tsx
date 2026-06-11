@@ -3,6 +3,7 @@ import { logoutUser, loginWithEmail, watchAuth, getApprovedUserProfile, subscrib
 import { AppDataProvider } from './context/AppDataProvider';
 import AppRoutes from './routes/AppRoutes';
 import LoginPage from './components/auth/LoginPage';
+import AppLoadingScreen from './components/auth/AppLoadingScreen';
 import './App.css';
 
 function App() {
@@ -80,13 +81,7 @@ function App() {
   }
 
   if (authLoading) {
-    return (
-      <div className="auth-shell">
-        <div className="auth-card">
-          <div className="auth-loading">Checking access...</div>
-        </div>
-      </div>
-    );
+    return <AppLoadingScreen />;
   }
 
   if (!authUser || !userProfile) {
