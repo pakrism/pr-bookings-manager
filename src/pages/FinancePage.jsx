@@ -30,6 +30,7 @@ export default function FinancePage({
   canEdit = false,
   onToggleProfitSharePaid,
   onTogglePartnerPoolPaid,
+  onBulkUpdatePayouts,
 }) {
   const capabilities = useMemo(() => getRoleCapabilities(userProfile), [userProfile]);
   const managerPoolId = getManagerPoolId(userProfile);
@@ -94,10 +95,12 @@ export default function FinancePage({
     tableBookings,
     bookings,
     range,
+    financeFilters,
     onViewBooking,
     canEdit,
     onToggleProfitSharePaid,
     onTogglePartnerPoolPaid,
+    onBulkUpdatePayouts,
     onExportToast,
   };
 

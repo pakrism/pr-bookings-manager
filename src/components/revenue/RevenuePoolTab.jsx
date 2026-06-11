@@ -1,6 +1,7 @@
-import { Fragment, useMemo, useState } from 'react';
+import { Fragment, useEffect, useMemo, useState } from 'react';
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
+import Checkbox from '@mui/material/Checkbox';
 import Grid from '@mui/material/Grid';
 import Typography from '@mui/material/Typography';
 import Table from '@mui/material/Table';
@@ -37,12 +38,17 @@ import {
   getRecipientTotalsForPool,
   filterDistributionByPool,
   isPartnerPoolPaid,
+  getProfitPoolAmount,
+  computeBulkPayoutPreview,
 } from '../../utils/partnerProfit';
+import { getBookingsForAttributionMonth } from '../../utils/revenueMetrics';
 import { resolveBookingStatus } from '../../utils/bookingStatus';
 import { getBookingProfit } from '../../utils/bookingFinancials';
 import ProfitShareBreakdown from '../profit/ProfitShareBreakdown';
 import { formatPercent } from './revenueConstants';
 import { downloadRevenueCsv } from '../../utils/exportRevenueCsv';
+import PayoutSelectionBar from './PayoutSelectionBar';
+import BulkPayoutConfirmDialog from './BulkPayoutConfirmDialog';
 
 function PoolAccordion({ title, helper, defaultExpanded = false, children }) {
   return (
@@ -70,17 +76,24 @@ function RevenuePoolTab({
   tableBookings,
   bookings,
   range,
+  financeFilters,
   onViewBooking,
   canEdit,
   onToggleProfitSharePaid,
   onTogglePartnerPoolPaid,
+  onBulkUpdatePayouts,
   onExportToast,
 }) {
   const [expandedId, setExpandedId] = useState(null);
   const [orderBy, setOrderBy] = useState('travelStartDate');
   const [order, setOrder] = useState('desc');
+  const [selectedIds, setSelectedIds] = useState([]);
+  const [shareKeys, setShareKeys] = useState([]);
+  const [includePartnerPool, setIncludePartnerPool] = useState(false);
+  const [confirmState, setConfirmState] = useState({ open: false, paid: true, loading: false });
 
   const pool = PROFIT_POOLS[poolId];
+  const partnerLabel = poolId === 'zohaib' ? 'Zohaib' : 'Pervaiz';
   const poolConfigs = useMemo(
     () => getRecipientConfigsForPool(poolId),
     [poolId]
@@ -134,6 +147,45 @@ function RevenuePoolTab({
     return list;
   }, [tableBookings, order, orderBy, poolId]);
 
+  useEffect(() => {
+    setSelectedIds([]);
+    setShareKeys([]);
+    setIncludePartnerPool(false);
+  }, [poolId]);
+
+  const selectedBookings = useMemo(
+    () => sortedBookings.filter((booking) => selectedIds.includes(booking.id)),
+    [sortedBookings, selectedIds]
+  );
+
+  const totalPoolShare = useMemo(
+    () =>
+      selectedBookings.reduce((sum, booking) => {
+        const amount = getProfitPoolAmount(booking, poolId);
+        return sum + (amount ?? 0);
+      }, 0),
+    [selectedBookings, poolId]
+  );
+
+  const payoutLabels = useMemo(() => {
+    const labels = [];
+    if (includePartnerPool) labels.push(`Partner share — ${partnerLabel}`);
+    for (const key of shareKeys) {
+      const config = poolConfigs.find((item) => item.shareKey === key);
+      if (config) labels.push(config.label);
+    }
+    return labels;
+  }, [includePartnerPool, shareKeys, poolConfigs, partnerLabel]);
+
+  const bulkPreview = useMemo(() => {
+    if (!confirmState.open) return null;
+    return computeBulkPayoutPreview(selectedBookings, poolId, {
+      shareKeys,
+      includePartnerPool,
+      paid: confirmState.paid,
+    });
+  }, [confirmState.open, confirmState.paid, selectedBookings, poolId, shareKeys, includePartnerPool]);
+
   const recipientChartOptions = useChart({
     xaxis: { categories: recipientList.map((r) => r.label) },
     plotOptions: { bar: { borderRadius: 6, columnWidth: '55%' } },
@@ -164,9 +216,66 @@ function RevenuePoolTab({
     onExportToast?.();
   }
 
-  if (!pool) return null;
+  function toggleBookingSelection(bookingId) {
+    setSelectedIds((prev) =>
+      prev.includes(bookingId) ? prev.filter((id) => id !== bookingId) : [...prev, bookingId]
+    );
+  }
 
-  const partnerLabel = poolId === 'zohaib' ? 'Zohaib' : 'Pervaiz';
+  function selectAllBookings(checked) {
+    setSelectedIds(checked ? sortedBookings.map((booking) => booking.id) : []);
+  }
+
+  function selectMonthBookings(monthKey, checked) {
+    const monthBookings = getBookingsForAttributionMonth(bookings, monthKey, financeFilters);
+    const monthIds = monthBookings.map((booking) => booking.id);
+    if (checked) {
+      setSelectedIds(monthIds);
+      return;
+    }
+    setSelectedIds((prev) => prev.filter((id) => !monthIds.includes(id)));
+  }
+
+  function getMonthSelectionState(monthKey) {
+    const monthBookings = getBookingsForAttributionMonth(bookings, monthKey, financeFilters);
+    const monthIds = monthBookings.map((booking) => booking.id);
+    if (!monthIds.length) return { checked: false, indeterminate: false };
+    const selectedInMonth = monthIds.filter((id) => selectedIds.includes(id));
+    return {
+      checked: selectedInMonth.length === monthIds.length,
+      indeterminate: selectedInMonth.length > 0 && selectedInMonth.length < monthIds.length,
+    };
+  }
+
+  function handleShareKeyToggle(shareKey, checked) {
+    setShareKeys((prev) =>
+      checked ? [...prev, shareKey] : prev.filter((key) => key !== shareKey)
+    );
+  }
+
+  function openBulkConfirm(paid) {
+    setConfirmState({ open: true, paid, loading: false });
+  }
+
+  async function handleConfirmBulk() {
+    if (!onBulkUpdatePayouts) return;
+    setConfirmState((prev) => ({ ...prev, loading: true }));
+    const result = await onBulkUpdatePayouts({
+      bookingIds: selectedIds,
+      shareKeys,
+      includePartnerPool,
+      poolId,
+      paid: confirmState.paid,
+    });
+    setConfirmState({ open: false, paid: true, loading: false });
+    if (result?.successCount > 0) {
+      setSelectedIds([]);
+      setShareKeys([]);
+      setIncludePartnerPool(false);
+    }
+  }
+
+  if (!pool) return null;
 
   return (
     <Box>
@@ -317,6 +426,7 @@ function RevenuePoolTab({
               <Table size="small">
                 <TableHead>
                   <TableRow>
+                    {canEdit && <TableCell padding="checkbox" />}
                     <TableCell>Month</TableCell>
                     <TableCell align="right">Bookings</TableCell>
                     <TableCell align="right">Pool total</TableCell>
@@ -330,8 +440,20 @@ function RevenuePoolTab({
                 <TableBody>
                   {monthlyBreakdown.map((row) => {
                     const poolTotal = row.poolTotals?.[poolId] ?? 0;
+                    const monthSelection = getMonthSelectionState(row.monthKey);
                     return (
                       <TableRow key={row.monthKey} hover>
+                        {canEdit && (
+                          <TableCell padding="checkbox">
+                            <Checkbox
+                              size="small"
+                              checked={monthSelection.checked}
+                              indeterminate={monthSelection.indeterminate}
+                              onChange={(e) => selectMonthBookings(row.monthKey, e.target.checked)}
+                              onClick={(e) => e.stopPropagation()}
+                            />
+                          </TableCell>
+                        )}
                         <TableCell>{formatMonthLabel(row.monthKey)}</TableCell>
                         <TableCell align="right">{row.bookingCount}</TableCell>
                         <TableCell align="right">{formatCurrency(poolTotal)}</TableCell>
@@ -366,6 +488,26 @@ function RevenuePoolTab({
           helper="Tap a row to view; expand for profit share details"
           defaultExpanded
         >
+          {canEdit && selectedIds.length > 0 && (
+            <PayoutSelectionBar
+              poolId={poolId}
+              selectedCount={selectedIds.length}
+              totalPoolShare={totalPoolShare}
+              poolConfigs={poolConfigs}
+              shareKeys={shareKeys}
+              includePartnerPool={includePartnerPool}
+              onShareKeyToggle={handleShareKeyToggle}
+              onPartnerPoolToggle={setIncludePartnerPool}
+              onClear={() => {
+                setSelectedIds([]);
+                setShareKeys([]);
+                setIncludePartnerPool(false);
+              }}
+              onMarkPaid={() => openBulkConfirm(true)}
+              onMarkUnpaid={() => openBulkConfirm(false)}
+            />
+          )}
+
           {!sortedBookings.length ? (
             <Box sx={{ py: 4, textAlign: 'center' }}>
               <Typography color="text.secondary">No bookings in this period.</Typography>
@@ -375,6 +517,20 @@ function RevenuePoolTab({
               <Table size="small">
                 <TableHead>
                   <TableRow>
+                    {canEdit && (
+                      <TableCell padding="checkbox">
+                        <Checkbox
+                          size="small"
+                          indeterminate={
+                            selectedIds.length > 0 && selectedIds.length < sortedBookings.length
+                          }
+                          checked={
+                            sortedBookings.length > 0 && selectedIds.length === sortedBookings.length
+                          }
+                          onChange={(e) => selectAllBookings(e.target.checked)}
+                        />
+                      </TableCell>
+                    )}
                     <TableCell width={48} />
                     <TableCell>
                       <TableSortLabel
@@ -433,9 +589,19 @@ function RevenuePoolTab({
                       <Fragment key={booking.id}>
                         <TableRow
                           hover
+                          selected={canEdit && selectedIds.includes(booking.id)}
                           sx={{ cursor: 'pointer' }}
                           onClick={() => onViewBooking?.(booking)}
                         >
+                          {canEdit && (
+                            <TableCell padding="checkbox" onClick={(e) => e.stopPropagation()}>
+                              <Checkbox
+                                size="small"
+                                checked={selectedIds.includes(booking.id)}
+                                onChange={() => toggleBookingSelection(booking.id)}
+                              />
+                            </TableCell>
+                          )}
                           <TableCell onClick={(e) => toggleExpanded(booking.id, e)}>
                             <IconButton size="small" aria-expanded={isExpanded}>
                               <i className={isExpanded ? 'ri-arrow-up-s-line' : 'ri-arrow-down-s-line'} />
@@ -482,7 +648,10 @@ function RevenuePoolTab({
                           </TableCell>
                         </TableRow>
                         <TableRow>
-                          <TableCell colSpan={9} sx={{ py: 0, borderBottom: isExpanded ? undefined : 0 }}>
+                          <TableCell
+                            colSpan={canEdit ? 10 : 9}
+                            sx={{ py: 0, borderBottom: isExpanded ? undefined : 0 }}
+                          >
                             <Collapse in={isExpanded} timeout="auto" unmountOnExit>
                               <Box sx={{ py: 2 }}>
                                 <ProfitShareBreakdown
@@ -510,6 +679,17 @@ function RevenuePoolTab({
           )}
         </PoolAccordion>
       </Card>
+
+      <BulkPayoutConfirmDialog
+        open={confirmState.open}
+        paid={confirmState.paid}
+        selectedCount={selectedIds.length}
+        payoutLabels={payoutLabels}
+        preview={bulkPreview}
+        loading={confirmState.loading}
+        onClose={() => setConfirmState({ open: false, paid: true, loading: false })}
+        onConfirm={handleConfirmBulk}
+      />
     </Box>
   );
 }

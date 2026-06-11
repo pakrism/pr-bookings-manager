@@ -28,6 +28,7 @@ function AppShell() {
     navigateToBooking,
     handleToggleProfitSharePaid,
     handleTogglePartnerPoolPaid,
+    handleBulkUpdatePayouts,
     showToast,
   } = useAppData();
 
@@ -86,6 +87,7 @@ function AppShell() {
                 canEdit={capabilities.canTogglePayouts}
                 onToggleProfitSharePaid={handleToggleProfitSharePaid}
                 onTogglePartnerPoolPaid={handleTogglePartnerPoolPaid}
+                onBulkUpdatePayouts={handleBulkUpdatePayouts}
               />
             </RequireAccess>
           }

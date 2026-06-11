@@ -531,6 +531,67 @@ export function AppDataProvider({ authUser, userProfile, children }) {
     }
   }
 
+  async function handleBulkUpdatePayouts({
+    bookingIds,
+    shareKeys = [],
+    includePartnerPool = false,
+    poolId,
+    paid,
+  }) {
+    if (!capabilities.canTogglePayouts) {
+      showToast('You do not have permission to update payouts.', 'error');
+      return { successCount: 0, failCount: 0 };
+    }
+
+    const targets = bookingIds
+      .map((id) => bookings.find((item) => item.id === id))
+      .filter(Boolean);
+
+    const results = await Promise.all(
+      targets.map(async (booking) => {
+        const profitSharePaid = { ...normalizeProfitSharePaid(booking.profitSharePaid) };
+        for (const shareKey of shareKeys) {
+          profitSharePaid[shareKey] = paid;
+        }
+
+        const patch = {
+          profitSharePaid,
+          updatedByUid: authUser.uid,
+          updatedByName: userProfile.fullName,
+        };
+
+        if (includePartnerPool && poolId) {
+          patch.partnerPoolPaid = {
+            ...normalizePartnerPoolPaid(booking.partnerPoolPaid),
+            [poolId]: paid,
+          };
+        }
+
+        try {
+          await updateBooking(booking.id, patch);
+          return true;
+        } catch {
+          return false;
+        }
+      })
+    );
+
+    const successCount = results.filter(Boolean).length;
+    const failCount = results.length - successCount;
+
+    if (failCount > 0) {
+      showToast(`Updated ${successCount} bookings; ${failCount} failed.`, 'error');
+    } else if (successCount > 0) {
+      showToast(
+        paid
+          ? `Marked ${successCount} booking${successCount === 1 ? '' : 's'} as paid.`
+          : `Marked ${successCount} booking${successCount === 1 ? '' : 's'} as unpaid.`
+      );
+    }
+
+    return { successCount, failCount };
+  }
+
   function requestDeleteBooking(bookingId) {
     if (!capabilities.canDeleteBookings) {
       showToast('You do not have permission to delete bookings.', 'error');
@@ -666,6 +727,7 @@ export function AppDataProvider({ authUser, userProfile, children }) {
     handleSaveBooking,
     handleToggleProfitSharePaid,
     handleTogglePartnerPoolPaid,
+    handleBulkUpdatePayouts,
     requestDeleteBooking,
     requestDeletePackage,
     handleExportBookingsCsv,

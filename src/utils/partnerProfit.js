@@ -214,4 +214,46 @@ export function getPartnerPoolTotals(bookings) {
   return totals;
 }
 
+export function computeBulkPayoutPreview(bookings, poolId, { shareKeys = [], includePartnerPool = false, paid }) {
+  let affectedCount = 0;
+  let skippedCount = 0;
+  let totalAmount = 0;
+
+  for (const booking of bookings) {
+    const distribution = getProfitDistribution(booking).filter((row) => row.poolId === poolId);
+    if (!distribution.length) {
+      skippedCount += 1;
+      continue;
+    }
+
+    let willChange = false;
+
+    for (const shareKey of shareKeys) {
+      const row = distribution.find((item) => item.shareKey === shareKey);
+      if (!row) continue;
+      if (row.paid !== paid) {
+        willChange = true;
+        totalAmount += row.amount;
+      }
+    }
+
+    if (includePartnerPool) {
+      const currentPartnerPaid = isPartnerPoolPaid(booking, poolId);
+      if (currentPartnerPaid !== paid) {
+        willChange = true;
+        const poolAmount = getProfitPoolAmount(booking, poolId);
+        if (poolAmount != null) totalAmount += poolAmount;
+      }
+    }
+
+    if (willChange) {
+      affectedCount += 1;
+    } else {
+      skippedCount += 1;
+    }
+  }
+
+  return { affectedCount, skippedCount, totalAmount };
+}
+
 export { getAllRecipientConfigs, getShareKey };

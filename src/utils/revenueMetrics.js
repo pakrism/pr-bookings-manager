@@ -165,6 +165,14 @@ export function computeRevenueMetrics(bookings, preset, customStart, customEnd, 
   };
 }
 
+export function getBookingsForAttributionMonth(bookings, monthKey, financeFilters = {}) {
+  const inMonth = bookings.filter(
+    (booking) =>
+      getRevenueAttributionMonth(booking) === monthKey && getBookingProfit(booking) != null
+  );
+  return filterBookingsForFinance(inMonth, financeFilters);
+}
+
 export function getLastMonthsBreakdown(bookings, monthCount = 6) {
   const keys = new Set();
   for (const booking of bookings) {
