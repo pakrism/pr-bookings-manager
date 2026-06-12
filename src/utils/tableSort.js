@@ -23,6 +23,8 @@ function getCellValue(row, orderBy) {
       return row.packageName || '';
     case 'travelStartDate':
       return row.travelStartDate || '';
+    case 'bookedBy':
+      return row.bookedBy || '';
     case 'packagePrice':
       return Number(row.packagePrice || 0);
     case 'profit': {

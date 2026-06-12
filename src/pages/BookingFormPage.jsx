@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import Box from '@mui/material/Box';
 import { useAppData } from '../context/AppDataContext';
 import { useBookingFromParams } from '../context/AppDataProvider';
@@ -10,7 +10,9 @@ import { canManagerAccessBooking } from '../utils/accessControl';
 
 export default function BookingFormPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { id } = useParams();
+  const returnToBookingsList = Boolean(location.state?.fromBookingsList);
   const isEdit = Boolean(id);
   const booking = useBookingFromParams();
   const {
@@ -70,8 +72,12 @@ export default function BookingFormPage() {
         onPaymentChange={handlePaymentChange}
         onAddPayment={handleAddPayment}
         onRemovePayment={handleRemovePayment}
-        onSubmit={handleSaveBooking}
-        onClose={() => navigate(isEdit && id ? `/bookings/${id}` : '/bookings')}
+        onSubmit={(event) =>
+          handleSaveBooking(event, { returnToBookingsList: returnToBookingsList && isEdit })
+        }
+        onClose={() =>
+          navigate(returnToBookingsList ? '/bookings' : isEdit && id ? `/bookings/${id}` : '/bookings')
+        }
         isSubmitting={isSavingBooking}
         readOnly={!capabilities.canWriteBookings}
         lockBookedBy={capabilities.isBookingManager}

@@ -86,6 +86,9 @@ export default function BookingTableRow({
         <Typography variant="body2" fontWeight={600}>{formatDateForDisplay(row.travelStartDate)}</Typography>
         <Typography variant="caption" color="text.secondary">{row.transport || '-'}</Typography>
       </TableCell>
+      <TableCell>
+        <Typography variant="body2" noWrap>{row.bookedBy || '-'}</Typography>
+      </TableCell>
       <TableCell><BookingStatusChip status={resolvedStatus} /></TableCell>
       {showFinancialColumns && (
         <>

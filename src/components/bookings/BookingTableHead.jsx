@@ -8,6 +8,7 @@ const HEAD_CELLS = [
   { id: 'guestName', label: 'Guest' },
   { id: 'packageName', label: 'Package' },
   { id: 'travelStartDate', label: 'Travel' },
+  { id: 'bookedBy', label: 'Booked by', width: 110 },
   { id: 'status', label: 'Status', width: 120 },
   { id: 'packagePrice', label: 'Price', align: 'right', width: 110, financial: true },
   { id: 'profit', label: 'Profit', align: 'right', width: 120, financial: true },

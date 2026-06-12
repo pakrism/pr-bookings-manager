@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
@@ -34,7 +34,6 @@ import {
   getBookingStatusTabs,
 } from '../utils/bookingStatusCounts';
 import { applySort, getComparator } from '../utils/tableSort';
-import { useTable } from '../hooks/useTable';
 import BookingQuickUpdateDialog from '../components/bookings/BookingQuickUpdateDialog';
 import { removeBooking } from '../lib/firestore';
 import { useAppData } from '../context/AppDataContext';
@@ -59,6 +58,16 @@ export default function BookingsPage() {
     setBookingCustomEnd,
     bookingBookedByFilter,
     setBookingBookedByFilter,
+    bookingListPage,
+    setBookingListPage,
+    bookingListRowsPerPage,
+    setBookingListRowsPerPage,
+    bookingListOrderBy,
+    setBookingListOrderBy,
+    bookingListOrder,
+    setBookingListOrder,
+    bookingListDense,
+    setBookingListDense,
     handleExportBookingsCsv,
     setShowRemindersModal,
     navigateToBooking,
@@ -70,13 +79,8 @@ export default function BookingsPage() {
     showToast,
   } = useAppData();
 
+  const [selected, setSelected] = useState([]);
   const [bulkEditOpen, setBulkEditOpen] = useState(false);
-
-  const table = useTable({
-    defaultOrderBy: 'travelStartDate',
-    defaultOrder: 'desc',
-    defaultRowsPerPage: 10,
-  });
 
   const showFinancialColumns = capabilities.canViewFinancialFields;
   const showSelection = capabilities.canBulkEditBookings || capabilities.canDeleteBookings;
@@ -109,6 +113,36 @@ export default function BookingsPage() {
     bookingBookedByFilter,
   ]);
 
+  const filterKey = useMemo(
+    () =>
+      JSON.stringify({
+        bookingSearch,
+        bookingStatusTab,
+        bookingDatePreset,
+        bookingTravelMonth,
+        bookingCustomStart,
+        bookingCustomEnd,
+        bookingBookedByFilter,
+      }),
+    [
+      bookingSearch,
+      bookingStatusTab,
+      bookingDatePreset,
+      bookingTravelMonth,
+      bookingCustomStart,
+      bookingCustomEnd,
+      bookingBookedByFilter,
+    ]
+  );
+  const prevFilterKey = useRef(filterKey);
+
+  useEffect(() => {
+    if (prevFilterKey.current !== filterKey) {
+      setBookingListPage(0);
+      prevFilterKey.current = filterKey;
+    }
+  }, [filterKey, setBookingListPage]);
+
   const enriched = useMemo(
     () =>
       filtered.map((booking) => ({
@@ -120,24 +154,49 @@ export default function BookingsPage() {
   );
 
   const sorted = useMemo(
-    () => applySort(enriched, getComparator(table.order, table.orderBy)),
-    [enriched, table.order, table.orderBy]
+    () => applySort(enriched, getComparator(bookingListOrder, bookingListOrderBy)),
+    [enriched, bookingListOrder, bookingListOrderBy]
   );
 
   const paginated = sorted.slice(
-    table.page * table.rowsPerPage,
-    table.page * table.rowsPerPage + table.rowsPerPage
+    bookingListPage * bookingListRowsPerPage,
+    bookingListPage * bookingListRowsPerPage + bookingListRowsPerPage
   );
 
   const selectedBookings = useMemo(
-    () => sorted.filter((booking) => table.selected.includes(booking.id)),
-    [sorted, table.selected]
+    () => sorted.filter((booking) => selected.includes(booking.id)),
+    [sorted, selected]
   );
 
   const selectionMetrics = useMemo(
     () => computeSelectionMetrics(selectedBookings),
     [selectedBookings]
   );
+
+  function handleSort(id) {
+    const isAsc = bookingListOrderBy === id && bookingListOrder === 'asc';
+    setBookingListOrder(isAsc ? 'desc' : 'asc');
+    setBookingListOrderBy(id);
+  }
+
+  function handleSelectRow(id) {
+    setSelected((prev) =>
+      prev.includes(id) ? prev.filter((value) => value !== id) : [...prev, id]
+    );
+  }
+
+  function handleSelectAll(checked) {
+    setSelected(checked ? sorted.map((row) => row.id) : []);
+  }
+
+  function handleChangePage(_event, newPage) {
+    setBookingListPage(newPage);
+  }
+
+  function handleChangeRowsPerPage(event) {
+    setBookingListRowsPerPage(parseInt(event.target.value, 10));
+    setBookingListPage(0);
+  }
 
   function handleDatePresetChange(value) {
     setBookingDatePreset(value);
@@ -168,7 +227,7 @@ export default function BookingsPage() {
           for (const booking of selectedBookings) {
             await removeBooking(booking.id);
           }
-          table.setSelected([]);
+          setSelected([]);
           showToast(`${selectedBookings.length} booking${selectedBookings.length === 1 ? '' : 's'} deleted.`);
         } catch (error) {
           showToast('Failed to delete bookings.', 'error');
@@ -238,11 +297,11 @@ export default function BookingsPage() {
           lockBookedByFilter={capabilities.isBookingManager}
         />
 
-        {showSelection && table.selected.length > 0 && (
+        {showSelection && selected.length > 0 && (
           <BookingSelectionBar
             metrics={selectionMetrics}
             canEdit={capabilities.canBulkEditBookings}
-            onClear={() => table.setSelected([])}
+            onClear={() => setSelected([])}
             onBulkEdit={() => setBulkEditOpen(true)}
             onExportSelected={handleExportSelected}
             onDeleteSelected={handleDeleteSelected}
@@ -250,22 +309,17 @@ export default function BookingsPage() {
         )}
 
         <TableContainer sx={{ overflowX: 'auto' }}>
-          <Table size={table.dense ? 'small' : 'medium'}>
+          <Table size={bookingListDense ? 'small' : 'medium'}>
             <TableHead>
               <BookingTableHead
-                order={table.order}
-                orderBy={table.orderBy}
-                onSort={table.onSort}
+                order={bookingListOrder}
+                orderBy={bookingListOrderBy}
+                onSort={handleSort}
                 rowCount={sorted.length}
                 numSelected={selectedBookings.length}
                 showFinancialColumns={showFinancialColumns}
                 showSelection={showSelection}
-                onSelectAll={(checked) =>
-                  table.onSelectAllRows(
-                    checked,
-                    sorted.map((row) => row.id)
-                  )
-                }
+                onSelectAll={handleSelectAll}
               />
             </TableHead>
             <TableBody>
@@ -273,8 +327,8 @@ export default function BookingsPage() {
                 <BookingTableRow
                   key={row.id}
                   row={row}
-                  selected={table.selected.includes(row.id)}
-                  onSelectRow={table.onSelectRow}
+                  selected={selected.includes(row.id)}
+                  onSelectRow={handleSelectRow}
                   onView={navigateToBooking}
                   onEdit={navigateToEditBooking}
                   onDelete={capabilities.canDeleteBookings ? requestDeleteBooking : undefined}
@@ -294,17 +348,23 @@ export default function BookingsPage() {
 
         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', px: 2 }}>
           <FormControlLabel
-            control={<Switch checked={table.dense} onChange={table.onChangeDense} size="small" />}
+            control={
+              <Switch
+                checked={bookingListDense}
+                onChange={(e) => setBookingListDense(e.target.checked)}
+                size="small"
+              />
+            }
             label="Dense"
           />
           <TablePagination
             component="div"
             count={sorted.length}
-            page={table.page}
-            onPageChange={table.onChangePage}
-            rowsPerPage={table.rowsPerPage}
-            onRowsPerPageChange={table.onChangeRowsPerPage}
-            rowsPerPageOptions={[5, 10, 25]}
+            page={bookingListPage}
+            onPageChange={handleChangePage}
+            rowsPerPage={bookingListRowsPerPage}
+            onRowsPerPageChange={handleChangeRowsPerPage}
+            rowsPerPageOptions={[10, 25, 50, 100, 500]}
           />
         </Box>
       </Card>
@@ -322,7 +382,7 @@ export default function BookingsPage() {
           bookings={selectedBookings}
           open
           onClose={() => setBulkEditOpen(false)}
-          onComplete={() => table.setSelected([])}
+          onComplete={() => setSelected([])}
         />
       )}
     </Box>

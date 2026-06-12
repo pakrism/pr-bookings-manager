@@ -60,6 +60,11 @@ export function AppDataProvider({ authUser, userProfile, children }) {
   const [bookingCustomStart, setBookingCustomStart] = useState('');
   const [bookingCustomEnd, setBookingCustomEnd] = useState('');
   const [bookingBookedByFilter, setBookingBookedByFilter] = useState('all');
+  const [bookingListPage, setBookingListPage] = useState(0);
+  const [bookingListRowsPerPage, setBookingListRowsPerPage] = useState(10);
+  const [bookingListOrderBy, setBookingListOrderBy] = useState('travelStartDate');
+  const [bookingListOrder, setBookingListOrder] = useState('desc');
+  const [bookingListDense, setBookingListDense] = useState(false);
   const [isSavingBooking, setIsSavingBooking] = useState(false);
   const [toast, setToast] = useState(null);
   const [showRemindersModal, setShowRemindersModal] = useState(false);
@@ -347,8 +352,9 @@ export function AppDataProvider({ authUser, userProfile, children }) {
     }
   }
 
-  async function handleSaveBooking(event) {
+  async function handleSaveBooking(event, options = {}) {
     event?.preventDefault?.();
+    const { returnToBookingsList = false } = options;
     if (!capabilities.canWriteBookings) {
       showToast('You have read-only access.', 'error');
       return;
@@ -454,7 +460,7 @@ export function AppDataProvider({ authUser, userProfile, children }) {
         };
         await updateBooking(editingBookingId, updatedBooking);
         showToast('Booking updated.');
-        navigate(`/bookings/${editingBookingId}`);
+        navigate(returnToBookingsList ? '/bookings' : `/bookings/${editingBookingId}`);
       } else {
         const bookingRef = await getNextBookingRefFromFirestore();
         const newBooking = {
@@ -675,7 +681,7 @@ export function AppDataProvider({ authUser, userProfile, children }) {
       return;
     }
     loadBookingIntoForm(booking);
-    navigate(`/bookings/${booking.id}/edit`);
+    navigate(`/bookings/${booking.id}/edit`, { state: { fromBookingsList: true } });
   }
 
   const value = {
@@ -704,6 +710,16 @@ export function AppDataProvider({ authUser, userProfile, children }) {
     setBookingCustomEnd,
     bookingBookedByFilter,
     setBookingBookedByFilter,
+    bookingListPage,
+    setBookingListPage,
+    bookingListRowsPerPage,
+    setBookingListRowsPerPage,
+    bookingListOrderBy,
+    setBookingListOrderBy,
+    bookingListOrder,
+    setBookingListOrder,
+    bookingListDense,
+    setBookingListDense,
     isSavingBooking,
     toast,
     showRemindersModal,
