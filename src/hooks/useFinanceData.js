@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { getPeriodRange } from '../utils/datePeriods';
 import {
   computeRevenueMetrics,
+  computeBookedByTotals,
   filterBookingsByRevenuePeriod,
   filterBookingsForFinance,
   getLastMonthsBreakdown,
@@ -55,6 +56,11 @@ export function useFinanceData(bookings) {
 
   const monthlyBreakdown = useMemo(
     () => getLastMonthsBreakdown(tableBookings, 6),
+    [tableBookings]
+  );
+
+  const bookedByTotals = useMemo(
+    () => computeBookedByTotals(tableBookings),
     [tableBookings]
   );
 
@@ -125,6 +131,7 @@ export function useFinanceData(bookings) {
     metrics,
     tableBookings,
     monthlyBreakdown,
+    bookedByTotals,
     kpiWidgets,
   };
 }

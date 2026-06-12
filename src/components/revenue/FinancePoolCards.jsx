@@ -123,7 +123,7 @@ export default function FinancePoolCards({
   }
 
   return (
-    <Grid container spacing={3} sx={{ mb: 3 }}>
+    <Grid container spacing={2} sx={{ mb: 2 }}>
       {showZohaib && (
         <Grid size={{ xs: 12, md: showPervaiz ? 6 : 12 }}>
           <PoolEntryCard

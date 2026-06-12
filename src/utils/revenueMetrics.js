@@ -92,7 +92,11 @@ export function filterBookingsForFinance(bookings, filters = {}) {
 
     if (bookedBy !== 'all') {
       const value = (booking.bookedBy || '').trim();
-      if (value !== bookedBy) return false;
+      if (bookedBy === 'Unassigned') {
+        if (value) return false;
+      } else if (value !== bookedBy) {
+        return false;
+      }
     }
 
     if (payoutFilter === 'partner_unpaid') {
@@ -163,6 +167,54 @@ export function computeRevenueMetrics(bookings, preset, customStart, customEnd, 
     partnerPoolTotals,
     bookings: inPeriod,
   };
+}
+
+const BOOKED_BY_PRIORITY = ['Zohaib', 'Pervaiz'];
+
+function normalizeBookedByLabel(booking) {
+  const value = String(booking?.bookedBy || '').trim();
+  return value || 'Unassigned';
+}
+
+export function computeBookedByTotals(bookings) {
+  const totals = new Map();
+
+  for (const booking of bookings) {
+    const bookedBy = normalizeBookedByLabel(booking);
+    const revenue = Number(booking.packagePrice || 0);
+    const profit = getBookingProfit(booking) ?? 0;
+
+    const entry = totals.get(bookedBy) || {
+      bookedBy,
+      bookingCount: 0,
+      revenue: 0,
+      profit: 0,
+    };
+
+    entry.bookingCount += 1;
+    entry.revenue += revenue;
+    entry.profit += profit;
+    totals.set(bookedBy, entry);
+  }
+
+  const rows = Array.from(totals.values()).map((entry) => ({
+    ...entry,
+    profitPercentage: getProfitPercentage(entry.profit, entry.revenue),
+  }));
+
+  rows.sort((a, b) => {
+    const aPriority = BOOKED_BY_PRIORITY.indexOf(a.bookedBy);
+    const bPriority = BOOKED_BY_PRIORITY.indexOf(b.bookedBy);
+    if (aPriority !== -1 || bPriority !== -1) {
+      if (aPriority === -1) return 1;
+      if (bPriority === -1) return -1;
+      return aPriority - bPriority;
+    }
+    if (b.revenue !== a.revenue) return b.revenue - a.revenue;
+    return a.bookedBy.localeCompare(b.bookedBy);
+  });
+
+  return rows;
 }
 
 export function getBookingsForAttributionMonth(bookings, monthKey, financeFilters = {}) {

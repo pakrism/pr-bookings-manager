@@ -7,6 +7,7 @@ import CustomBreadcrumbs from '../components/ui/CustomBreadcrumbs';
 import PageHeader from '../components/ui/PageHeader';
 import FinanceFilterPanel from '../components/revenue/FinanceFilterPanel';
 import FinanceKpiRow from '../components/revenue/FinanceKpiRow';
+import FinanceBookedBySummary from '../components/revenue/FinanceBookedBySummary';
 import FinancePoolCards from '../components/revenue/FinancePoolCards';
 import { FinanceDataContext } from '../context/FinanceDataContext';
 import { useFinanceData } from '../hooks/useFinanceData';
@@ -90,6 +91,8 @@ export default function FinanceLayout() {
         <PageHeader
           title={isDashboard ? 'Finance' : POOL_LABELS[activePoolId]}
           subtitle={subtitle}
+          sx={{ mb: 2 }}
+          titleVariant={isDashboard ? 'h5' : 'h4'}
         />
 
         <FinanceFilterPanel
@@ -106,11 +109,23 @@ export default function FinanceLayout() {
           payoutFilter={financeData.payoutFilter}
           onPayoutFilterChange={financeData.setPayoutFilter}
           onExport={handleExportCsv}
+          compact={isDashboard}
         />
 
         {isDashboard && capabilities.isAdmin && (
           <>
             <FinanceKpiRow kpiWidgets={financeData.kpiWidgets} />
+            <FinanceBookedBySummary
+              rows={financeData.bookedByTotals}
+              activeBookedBy={financeData.bookedByFilter === 'all' ? null : financeData.bookedByFilter}
+              onSelectBookedBy={(bookedBy) => {
+                if (financeData.bookedByFilter === bookedBy) {
+                  financeData.setBookedByFilter('all');
+                  return;
+                }
+                financeData.setBookedByFilter(bookedBy);
+              }}
+            />
             <FinancePoolCards
               metrics={financeData.metrics}
               visiblePoolIds={null}

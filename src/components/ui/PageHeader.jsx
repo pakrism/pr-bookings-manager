@@ -1,7 +1,7 @@
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 
-export default function PageHeader({ title, subtitle, action, sx }) {
+export default function PageHeader({ title, subtitle, action, sx, titleVariant = 'h4' }) {
   return (
     <Box
       sx={{
@@ -15,7 +15,7 @@ export default function PageHeader({ title, subtitle, action, sx }) {
       }}
     >
       <Box>
-        <Typography variant="h4">{title}</Typography>
+        <Typography variant={titleVariant}>{title}</Typography>
         {subtitle && (
           <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
             {subtitle}

@@ -43,18 +43,19 @@ export default function FinanceFilterPanel({
   payoutFilter,
   onPayoutFilterChange,
   onExport,
+  compact = false,
 }) {
   const [filtersOpen, setFiltersOpen] = useState(false);
 
   return (
-    <Card sx={{ mb: 3, p: 2 }}>
+    <Card sx={{ mb: compact ? 2 : 3, p: compact ? { py: 1.25, px: 1.5 } : 2 }}>
       <Stack
         direction={{ xs: 'column', sm: 'row' }}
-        spacing={2}
+        spacing={compact ? 1 : 2}
         alignItems={{ xs: 'stretch', sm: 'center' }}
         justifyContent="space-between"
       >
-        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, alignItems: 'center', flex: 1 }}>
+        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: compact ? 1 : 2, alignItems: 'center', flex: 1 }}>
           <FormControl size="small" sx={{ minWidth: 180 }}>
             <Select value={preset} onChange={(e) => onPresetChange(e.target.value)} displayEmpty>
               {PERIOD_PRESETS.map((opt) => (
@@ -94,6 +95,12 @@ export default function FinanceFilterPanel({
               <i className={filtersOpen ? 'ri-arrow-up-s-line' : 'ri-arrow-down-s-line'} />
             </IconButton>
           </OutlineButton>
+
+          {compact && (
+            <Typography variant="caption" color="text.secondary" sx={{ display: { xs: 'none', md: 'block' } }}>
+              · Departure month
+            </Typography>
+          )}
         </Box>
 
         <OutlineButton type="button" onClick={onExport}>
@@ -101,9 +108,11 @@ export default function FinanceFilterPanel({
         </OutlineButton>
       </Stack>
 
-      <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
-        Money counted by departure month
-      </Typography>
+      {!compact && (
+        <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
+          Money counted by departure month
+        </Typography>
+      )}
 
       <Collapse in={filtersOpen}>
         <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, pt: 2 }}>
