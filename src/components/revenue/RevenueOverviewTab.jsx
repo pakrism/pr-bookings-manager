@@ -1,15 +1,12 @@
-import { useState } from 'react';
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import Grid from '@mui/material/Grid';
 import Typography from '@mui/material/Typography';
-import Collapse from '@mui/material/Collapse';
-import IconButton from '@mui/material/IconButton';
 
 import Chart from '../ui/Chart';
 import { useChart } from '../ui/useChart';
-import { OutlineButton } from '../common/BrandButton';
 import { getLastMonthsBreakdown } from '../../utils/revenueMetrics';
+import { POOL_IDS } from '../../data/profitPools';
 
 function ChartCard({ title, subheader, children }) {
   return (
@@ -28,8 +25,6 @@ function ChartCard({ title, subheader, children }) {
 }
 
 function RevenueOverviewTab({ metrics, bookings }) {
-  const [chartsOpen, setChartsOpen] = useState(false);
-
   const monthlyBreakdown = getLastMonthsBreakdown(bookings, 8).reverse();
 
   const trendChartOptions = useChart({
@@ -50,10 +45,16 @@ function RevenueOverviewTab({ metrics, bookings }) {
   const zohaibTotal = metrics.poolTotals?.zohaib ?? 0;
   const pervaizTotal = metrics.poolTotals?.pervaiz ?? 0;
 
+  const paidUnpaidOptions = useChart({
+    xaxis: { categories: POOL_IDS.map((id) => (id === 'zohaib' ? 'Zohaib' : 'Pervaiz')) },
+    plotOptions: { bar: { borderRadius: 6, columnWidth: '45%' } },
+    legend: { show: true, position: 'top' },
+  });
+
   return (
     <Box>
-      <Grid container spacing={3} sx={{ mb: 3 }}>
-        <Grid size={{ xs: 12 }}>
+      <Grid container spacing={3}>
+        <Grid size={{ xs: 12, lg: 8 }}>
           <ChartCard title="Revenue & profit trend" subheader="Last 8 departure months">
             {monthlyBreakdown.length ? (
               <Chart
@@ -80,44 +81,57 @@ function RevenueOverviewTab({ metrics, bookings }) {
             )}
           </ChartCard>
         </Grid>
-      </Grid>
 
-      <Box sx={{ mb: 2 }}>
-        <OutlineButton type="button" onClick={() => setChartsOpen((open) => !open)}>
-          {chartsOpen ? 'Hide charts' : 'Show charts'}
-          <IconButton size="small" component="span" sx={{ ml: 0.5 }}>
-            <i className={chartsOpen ? 'ri-arrow-up-s-line' : 'ri-arrow-down-s-line'} />
-          </IconButton>
-        </OutlineButton>
-      </Box>
+        <Grid size={{ xs: 12, lg: 4 }}>
+          <ChartCard title="Pool split" subheader="50/50 partner allocation">
+            {zohaibTotal + pervaizTotal > 0 ? (
+              <Chart
+                type="donut"
+                height={300}
+                series={[zohaibTotal, pervaizTotal]}
+                options={poolSplitOptions}
+              />
+            ) : (
+              <Typography variant="body2" color="text.secondary" sx={{ py: 8, textAlign: 'center' }}>
+                No profit in period
+              </Typography>
+            )}
+          </ChartCard>
+        </Grid>
 
-      <Collapse in={chartsOpen}>
-        <Grid container spacing={3}>
-          <Grid size={{ xs: 12, md: 6 }}>
-            <ChartCard title="Pool split" subheader="50/50 partner allocation">
-              {zohaibTotal + pervaizTotal > 0 ? (
-                <Chart
-                  type="donut"
-                  height={280}
-                  series={[zohaibTotal, pervaizTotal]}
-                  options={poolSplitOptions}
-                />
-              ) : (
-                <Typography variant="body2" color="text.secondary" sx={{ py: 8, textAlign: 'center' }}>
-                  No profit in period
-                </Typography>
-              )}
-            </ChartCard>
-          </Grid>
-          <Grid size={{ xs: 12, md: 6 }}>
-            <ChartCard title="Bookings in period" subheader="Count by departure month">
-              <Typography variant="h3" fontWeight={700} sx={{ py: 6, textAlign: 'center' }}>
+        <Grid size={{ xs: 12, md: 6 }}>
+          <ChartCard title="Partner paid vs unpaid" subheader="Pool partner shares in period">
+            <Chart
+              type="bar"
+              height={280}
+              series={[
+                {
+                  name: 'Paid',
+                  data: POOL_IDS.map((id) => metrics.partnerPoolTotals?.[id]?.paidTotal ?? 0),
+                },
+                {
+                  name: 'Unpaid',
+                  data: POOL_IDS.map((id) => metrics.partnerPoolTotals?.[id]?.unpaidTotal ?? 0),
+                },
+              ]}
+              options={paidUnpaidOptions}
+            />
+          </ChartCard>
+        </Grid>
+
+        <Grid size={{ xs: 12, md: 6 }}>
+          <ChartCard title="Bookings in period" subheader="Departure-month attribution">
+            <Box sx={{ py: 4, textAlign: 'center' }}>
+              <Typography variant="h3" fontWeight={700}>
                 {metrics.bookingCount}
               </Typography>
-            </ChartCard>
-          </Grid>
+              <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                bookings in selected period
+              </Typography>
+            </Box>
+          </ChartCard>
         </Grid>
-      </Collapse>
+      </Grid>
     </Box>
   );
 }

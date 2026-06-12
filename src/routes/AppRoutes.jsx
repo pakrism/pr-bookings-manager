@@ -7,7 +7,9 @@ import BookingFormPage from '../pages/BookingFormPage';
 import PackagesPage from '../pages/PackagesPage';
 import PackageFormDrawer from '../components/packages/PackageFormDrawer';
 import SchedulePage from '../pages/SchedulePage';
-import FinancePage from '../pages/FinancePage';
+import FinanceLayout from '../layouts/FinanceLayout';
+import FinanceDashboardPage from '../pages/FinanceDashboardPage';
+import FinancePoolPage from '../pages/FinancePoolPage';
 import UsersPage from '../pages/UsersPage';
 import DepartureRemindersModal from '../components/bookings/DepartureRemindersModal';
 import ConfirmDialog from '../components/ui/ConfirmDialog';
@@ -18,18 +20,11 @@ import { useAppData } from '../context/AppDataContext';
 function AppShell() {
   const {
     bookings,
-    userProfile,
-    capabilities,
     showRemindersModal,
     setShowRemindersModal,
     confirmDialog,
     setConfirmDialog,
     toast,
-    navigateToBooking,
-    handleToggleProfitSharePaid,
-    handleTogglePartnerPoolPaid,
-    handleBulkUpdatePayouts,
-    showToast,
   } = useAppData();
 
   return (
@@ -79,19 +74,14 @@ function AppShell() {
           path="/finance"
           element={
             <RequireAccess fallback="/dashboard">
-              <FinancePage
-                bookings={bookings}
-                userProfile={userProfile}
-                onViewBooking={navigateToBooking}
-                onExportToast={() => showToast('Revenue CSV downloaded.')}
-                canEdit={capabilities.canTogglePayouts}
-                onToggleProfitSharePaid={handleToggleProfitSharePaid}
-                onTogglePartnerPoolPaid={handleTogglePartnerPoolPaid}
-                onBulkUpdatePayouts={handleBulkUpdatePayouts}
-              />
+              <FinanceLayout />
             </RequireAccess>
           }
-        />
+        >
+          <Route index element={<FinanceDashboardPage />} />
+          <Route path="zohaib" element={<FinancePoolPage poolId="zohaib" />} />
+          <Route path="pervaiz" element={<FinancePoolPage poolId="pervaiz" />} />
+        </Route>
         <Route
           path="/users"
           element={

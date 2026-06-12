@@ -3,6 +3,7 @@ import { NavLink, useLocation } from 'react-router-dom';
 import { logoutUser } from '../lib/auth';
 import {
   Box,
+  Collapse,
   Drawer,
   AppBar,
   Toolbar,
@@ -21,7 +22,7 @@ import {
 } from '@mui/material';
 import Logo from '../components/logo/Logo';
 import { useAppData } from '../context/AppDataContext';
-import { canAccessRoute, getRoleLabel } from '../utils/accessControl';
+import { canAccessRoute, getFinanceNavItems, getRoleLabel } from '../utils/accessControl';
 
 const SIDEBAR_WIDTH = 272;
 
@@ -30,18 +31,39 @@ const navItems = [
   { path: '/bookings', label: 'Bookings', icon: 'ri-calendar-check-line', badgeKey: 'bookings' },
   { path: '/packages', label: 'Packages', icon: 'ri-map-2-line', badgeKey: 'packages' },
   { path: '/schedule', label: 'Schedule', icon: 'ri-time-line' },
-  { path: '/finance', label: 'Finance', icon: 'ri-money-dollar-circle-line' },
+  {
+    path: '/finance',
+    label: 'Finance',
+    icon: 'ri-money-dollar-circle-line',
+    financeMenu: true,
+  },
   { path: '/users', label: 'Users', icon: 'ri-group-line' },
 ];
 
 function SidebarContent({ onClose, onSignOut }) {
   const { userProfile, scopedBookings, packages } = useAppData();
   const location = useLocation();
+  const financeNavItems = getFinanceNavItems(userProfile);
+  const financeActive = location.pathname.startsWith('/finance');
+  const [financeOpen, setFinanceOpen] = useState(financeActive);
 
   const badges = { bookings: scopedBookings.length, packages: packages.length };
   const initial = userProfile?.fullName?.trim()?.[0]?.toUpperCase() || 'U';
   const roleLabel = getRoleLabel(userProfile?.role);
-  const visibleNavItems = navItems.filter((item) => canAccessRoute(item.path, userProfile));
+  const visibleNavItems = navItems.filter((item) => {
+    if (item.financeMenu) return financeNavItems.length > 0;
+    return canAccessRoute(item.path, userProfile);
+  });
+
+  function isNavActive(item, childPath) {
+    if (childPath) {
+      if (childPath === '/finance') {
+        return location.pathname === '/finance' || location.pathname === '/finance/';
+      }
+      return location.pathname === childPath;
+    }
+    return location.pathname.startsWith(item.path);
+  }
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%', p: 2 }}>
@@ -52,6 +74,78 @@ function SidebarContent({ onClose, onSignOut }) {
 
       <List disablePadding sx={{ flex: 1 }}>
         {visibleNavItems.map((item) => {
+          if (item.financeMenu) {
+            return (
+              <Box key={item.path}>
+                <ListItemButton
+                  selected={financeActive}
+                  onClick={() => setFinanceOpen((open) => !open)}
+                  sx={{
+                    mb: 0.5,
+                    '&.Mui-selected': {
+                      bgcolor: 'action.hover',
+                      borderLeft: '3px solid',
+                      borderColor: 'primary.main',
+                    },
+                  }}
+                >
+                  <ListItemIcon sx={{ minWidth: 36 }}>
+                    <i
+                      className={item.icon}
+                      style={{ fontSize: 20, color: financeActive ? '#58C71B' : '#637381' }}
+                    />
+                  </ListItemIcon>
+                  <ListItemText
+                    primary={item.label}
+                    primaryTypographyProps={{
+                      fontWeight: financeActive ? 700 : 500,
+                      fontSize: '0.9rem',
+                    }}
+                  />
+                  <i
+                    className={financeOpen ? 'ri-arrow-up-s-line' : 'ri-arrow-down-s-line'}
+                    style={{ fontSize: 16, color: '#637381' }}
+                  />
+                </ListItemButton>
+                <Collapse in={financeOpen} timeout="auto" unmountOnExit>
+                  <List disablePadding sx={{ pl: 2, mb: 0.5 }}>
+                    {financeNavItems.map((child) => {
+                      const childActive = isNavActive(item, child.path);
+                      return (
+                        <ListItemButton
+                          key={child.path}
+                          component={NavLink}
+                          to={child.path}
+                          selected={childActive}
+                          onClick={onClose}
+                          sx={{
+                            py: 0.75,
+                            '&.Mui-selected': {
+                              bgcolor: 'action.hover',
+                              borderLeft: '3px solid',
+                              borderColor: 'primary.main',
+                            },
+                          }}
+                        >
+                          <ListItemIcon sx={{ minWidth: 32 }}>
+                            <i
+                              className={child.icon}
+                              style={{ fontSize: 18, color: childActive ? '#58C71B' : '#637381' }}
+                            />
+                          </ListItemIcon>
+                          <ListItemText
+                            primary={child.label}
+                            primaryTypographyProps={{ fontSize: '0.85rem', fontWeight: childActive ? 700 : 500 }}
+                          />
+                        </ListItemButton>
+                      );
+                    })}
+                  </List>
+                </Collapse>
+              </Box>
+            );
+          }
+
           const active = location.pathname.startsWith(item.path);
           const badgeCount = item.badgeKey ? badges[item.badgeKey] : 0;
 
@@ -126,6 +220,12 @@ export default function DashboardLayout({ children }) {
     }
     if (path.startsWith('/packages')) return { title: 'Packages', subtitle: `${packages.length} tour packages` };
     if (path.startsWith('/schedule')) return { title: 'Schedule', subtitle: 'Trip batches overview' };
+    if (path.startsWith('/finance/zohaib')) {
+      return { title: 'Zohaib pool', subtitle: 'Pool payouts and bookings' };
+    }
+    if (path.startsWith('/finance/pervaiz')) {
+      return { title: 'Pervaiz pool', subtitle: 'Pool payouts and bookings' };
+    }
     if (path.startsWith('/finance')) return { title: 'Finance', subtitle: 'Revenue and partner shares' };
     return { title: 'Dashboard', subtitle: `Welcome back, ${userProfile?.fullName?.split(' ')[0] || 'there'}` };
   }, [location.pathname, bookings.length, packages.length, userProfile?.fullName]);

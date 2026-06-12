@@ -64,7 +64,7 @@ export function canAccessRoute(path, profile) {
   }
 
   if (normalized.startsWith('/finance')) {
-    return role === 'admin' || role === 'booking_manager';
+    return canAccessFinanceRoute(normalized, profile);
   }
 
   if (normalized.startsWith('/bookings/new') || normalized.includes('/edit')) {
@@ -78,12 +78,42 @@ export function canAccessRoute(path, profile) {
   return true;
 }
 
-export function getDefaultFinanceTab(profile) {
+export function canAccessFinanceRoute(path, profile) {
+  const normalized = path.split('?')[0].replace(/\/$/, '') || '/';
   const role = normalizeUserRole(profile?.role);
-  if (role === 'booking_manager' && profile?.poolId) {
-    return profile.poolId;
+
+  if (!normalized.startsWith('/finance')) return true;
+  if (role !== 'admin' && role !== 'booking_manager') return false;
+
+  if (role === 'booking_manager') {
+    const poolId = getManagerPoolId(profile);
+    if (!poolId) return false;
+    if (normalized === '/finance') return true;
+    return normalized === `/finance/${poolId}`;
   }
-  return 'overview';
+
+  return true;
+}
+
+export function getFinanceNavItems(profile) {
+  const role = normalizeUserRole(profile?.role);
+  const poolId = getManagerPoolId(profile);
+
+  if (role === 'booking_manager' && poolId) {
+    return [
+      {
+        path: `/finance/${poolId}`,
+        label: poolId === 'zohaib' ? 'Zohaib pool' : 'Pervaiz pool',
+        icon: 'ri-user-line',
+      },
+    ];
+  }
+
+  return [
+    { path: '/finance', label: 'Overview', icon: 'ri-dashboard-line', end: true },
+    { path: '/finance/zohaib', label: 'Zohaib pool', icon: 'ri-user-line' },
+    { path: '/finance/pervaiz', label: 'Pervaiz pool', icon: 'ri-user-line' },
+  ];
 }
 
 export function getScopedBookings(bookings, profile) {
