@@ -10,10 +10,30 @@ const VALID_ROLES = new Set(['admin', 'booking_manager', 'viewer']);
 const MANAGER_BOOKED_BY = new Set(['Zohaib', 'Pervaiz']);
 const MANAGER_POOL_IDS = new Set(['zohaib', 'pervaiz']);
 
+const { defineSecret } = require('firebase-functions/params');
+
+const openaiApiKey = defineSecret('OPENAI_API_KEY');
+
 const callableOptions = {
   region: 'us-central1',
-  cors: ['https://pr-bms.netlify.app', /^http:\/\/localhost(:\d+)?$/],
+  cors: [
+    'https://pr-bms.netlify.app',
+    'https://pr-plan.netlify.app',
+    /^http:\/\/localhost(:\d+)?$/,
+  ],
 };
+
+async function assertSignedIn(context) {
+  if (!context.auth?.uid) {
+    throw new HttpsError('unauthenticated', 'You must be signed in.');
+  }
+
+  const callerDoc = await db.doc(`users/${context.auth.uid}`).get();
+
+  if (!callerDoc.exists || callerDoc.data()?.isActive !== true) {
+    throw new HttpsError('permission-denied', 'Your account is not active.');
+  }
+}
 
 async function assertAdmin(context) {
   if (!context.auth?.uid) {
@@ -189,3 +209,110 @@ exports.resetUserPassword = onCall(callableOptions, async (request) => {
   const resetLink = await auth.generatePasswordResetLink(email);
   return { resetLink };
 });
+
+function buildParserContext(config) {
+  const cities = (config?.cities ?? []).map((city) => ({
+    id: city.id,
+    name: city.name,
+    kind: city.kind,
+  }));
+  const vehicles = (config?.vehicles ?? []).map((vehicle) => ({
+    id: vehicle.id,
+    name: vehicle.name,
+    type: vehicle.type,
+  }));
+  const hotels = (config?.hotels ?? []).map((hotel) => ({
+    id: hotel.id,
+    name: hotel.name,
+    cityId: hotel.cityId,
+    categoryId: hotel.categoryId,
+  }));
+  const jeepSegments = (config?.jeepSegments ?? []).map((segment) => ({
+    id: segment.id,
+    name: segment.name,
+    cityId: segment.cityId,
+  }));
+  const entryTickets = (config?.entryTickets ?? []).map((ticket) => ({
+    id: ticket.id,
+    name: ticket.name,
+  }));
+
+  return { cities, vehicles, hotels, jeepSegments, entryTickets };
+}
+
+async function loadPricePlannerConfig() {
+  const snap = await db.doc('pricePlanner/config').get();
+  return snap.exists ? snap.data() : null;
+}
+
+exports.parseClientRequirement = onCall(
+  { ...callableOptions, secrets: [openaiApiKey] },
+  async (request) => {
+    await assertSignedIn(request);
+
+    const text = String(request.data?.text || '').trim();
+    if (!text) {
+      throw new HttpsError('invalid-argument', 'Client message text is required.');
+    }
+
+    const config = await loadPricePlannerConfig();
+    const context = buildParserContext(config);
+
+    const systemPrompt = [
+      'You extract structured tour package requirements from WhatsApp-style client messages.',
+      'Return ONLY valid JSON matching this schema:',
+      '{',
+      '  "packageTitle": string,',
+      '  "departureCityId": string | null,',
+      '  "waypointIds": string[],',
+      '  "vehicleId": string | null,',
+      '  "tripDays": number,',
+      '  "adults": number,',
+      '  "children": number,',
+      '  "hotelNights": [{ "destinationId": string, "categoryId": string, "hotelId": string | null, "rooms": number, "nights": number }],',
+      '  "jeepSegments": [{ "segmentId": string, "quantity": number, "days": number | null }],',
+      '  "tickets": [{ "ticketId": string, "quantity": number }],',
+      '  "marginPercent": number | null,',
+      '  "quoteMode": "family" | "perPerson",',
+      '  "warnings": string[]',
+      '}',
+      'Use ONLY ids from the provided config lists. If unsure, leave arrays empty and add warnings.',
+      `Allowed config: ${JSON.stringify(context)}`,
+    ].join('\n');
+
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${openaiApiKey.value()}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'gpt-4o-mini',
+        temperature: 0.1,
+        response_format: { type: 'json_object' },
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: text },
+        ],
+      }),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new HttpsError('internal', `OpenAI request failed: ${errorText.slice(0, 300)}`);
+    }
+
+    const payload = await response.json();
+    const content = payload?.choices?.[0]?.message?.content;
+
+    if (!content) {
+      throw new HttpsError('internal', 'OpenAI returned an empty response.');
+    }
+
+    try {
+      return JSON.parse(content);
+    } catch {
+      throw new HttpsError('internal', 'OpenAI returned invalid JSON.');
+    }
+  },
+);
