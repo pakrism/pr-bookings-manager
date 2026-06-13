@@ -8,7 +8,10 @@
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "deploy:rules": "firebase deploy --only firestore:rules --project pakrism-bookings"
+    "deploy:rules": "npx firebase-tools deploy --only firestore:rules --project pakrism-bookings",
+    "seed:price-planner": "node scripts/seed-price-planner-config.mjs",
+    "fix:functions-iam": "bash scripts/fix-functions-build-iam.sh",
+    "deploy:parse-requirement": "npx firebase-tools deploy --only functions:parseClientRequirement --project pakrism-bookings"
   },
   "dependencies": {
     "@emotion/react": "^11.14.0",
