@@ -220,6 +220,11 @@ function buildParserContext(config) {
     id: vehicle.id,
     name: vehicle.name,
     type: vehicle.type,
+    capacity: vehicle.capacity,
+  }));
+  const hotelCategories = (config?.hotelCategories ?? []).map((category) => ({
+    id: category.id,
+    name: category.name,
   }));
   const hotels = (config?.hotels ?? []).map((hotel) => ({
     id: hotel.id,
@@ -237,7 +242,87 @@ function buildParserContext(config) {
     name: ticket.name,
   }));
 
-  return { cities, vehicles, hotels, jeepSegments, entryTickets };
+  return { cities, vehicles, hotelCategories, hotels, jeepSegments, entryTickets };
+}
+
+function normalizeParsedRequirement(raw, context) {
+  const warnings = Array.isArray(raw?.warnings) ? [...raw.warnings] : [];
+  const cityIds = new Set(context.cities.map((c) => c.id));
+  const vehicleIds = new Set(context.vehicles.map((v) => v.id));
+  const categoryIds = new Set(context.hotelCategories.map((c) => c.id));
+  const hotelIds = new Set(context.hotels.map((h) => h.id));
+  const segmentIds = new Set(context.jeepSegments.map((s) => s.id));
+  const ticketIds = new Set(context.entryTickets.map((t) => t.id));
+
+  const departureCityId =
+    raw?.departureCityId && cityIds.has(raw.departureCityId) ? raw.departureCityId : null;
+
+  const waypointIds = (raw?.waypointIds ?? []).filter((id) => {
+    if (!cityIds.has(id)) {
+      warnings.push(`Removed unknown stop: ${id}`);
+      return false;
+    }
+    return id !== departureCityId;
+  });
+
+  let vehicleId = raw?.vehicleId && vehicleIds.has(raw.vehicleId) ? raw.vehicleId : null;
+  const adults = Math.max(Number(raw?.adults) || 4, 1);
+  if (!vehicleId && adults >= 15) {
+    vehicleId = context.vehicles.find((v) => v.id === 'coaster')?.id
+      ?? context.vehicles.find((v) => v.type === 'coaster')?.id
+      ?? context.vehicles.find((v) => v.id === 'hiace')?.id
+      ?? null;
+    if (vehicleId) warnings.push(`Selected large-group vehicle for ${adults} pax`);
+  }
+
+  const hotelNights = (raw?.hotelNights ?? [])
+    .filter((night) => night?.destinationId && cityIds.has(night.destinationId))
+    .map((night) => {
+      const categoryId =
+        night.categoryId && categoryIds.has(night.categoryId) ? night.categoryId : 'deluxe';
+      const hotelId = night.hotelId && hotelIds.has(night.hotelId) ? night.hotelId : undefined;
+      return {
+        destinationId: night.destinationId,
+        categoryId,
+        ...(hotelId ? { hotelId } : {}),
+        rooms: Math.max(Number(night.rooms) || 1, 1),
+        nights: Math.max(Number(night.nights) || 1, 1),
+      };
+    });
+
+  const jeepSegments = (raw?.jeepSegments ?? [])
+    .filter((sel) => sel?.segmentId && segmentIds.has(sel.segmentId))
+    .map((sel) => ({
+      segmentId: sel.segmentId,
+      quantity: Math.max(Number(sel.quantity) || 1, 1),
+      ...(sel.days != null ? { days: Math.max(Number(sel.days) || 1, 1) } : {}),
+    }));
+
+  const tickets = (raw?.tickets ?? [])
+    .filter((sel) => sel?.ticketId && ticketIds.has(sel.ticketId))
+    .map((sel) => ({
+      ticketId: sel.ticketId,
+      quantity: Math.max(Number(sel.quantity) || adults, 1),
+    }));
+
+  const tripDays = Math.max(Number(raw?.tripDays) || 7, 1);
+  const quoteMode = raw?.quoteMode === 'perPerson' ? 'perPerson' : 'family';
+
+  return {
+    packageTitle: String(raw?.packageTitle || 'Northern Pakistan Tour').trim(),
+    departureCityId,
+    waypointIds,
+    vehicleId,
+    tripDays,
+    adults,
+    children: Math.max(Number(raw?.children) || 0, 0),
+    hotelNights,
+    jeepSegments,
+    tickets,
+    marginPercent: raw?.marginPercent != null ? Number(raw.marginPercent) : null,
+    quoteMode,
+    warnings,
+  };
 }
 
 async function loadPricePlannerConfig() {
@@ -259,7 +344,7 @@ exports.parseClientRequirement = onCall(
     const context = buildParserContext(config);
 
     const systemPrompt = [
-      'You extract structured tour package requirements from WhatsApp-style client messages.',
+      'You extract structured tour package requirements from WhatsApp-style client messages for Pakistan road tours.',
       'Return ONLY valid JSON matching this schema:',
       '{',
       '  "packageTitle": string,',
@@ -276,7 +361,16 @@ exports.parseClientRequirement = onCall(
       '  "quoteMode": "family" | "perPerson",',
       '  "warnings": string[]',
       '}',
-      'Use ONLY ids from the provided config lists. If unsure, leave arrays empty and add warnings.',
+      'Rules:',
+      '- tripDays = number of days (not nights). "10 days 9 nights" → tripDays: 10.',
+      '- adults = total people/pax when message says "20 people", "20 pax", "family of 20", etc.',
+      '- hotelNights[].rooms = rooms per night when message says "8 rooms" or "8 rooms per night".',
+      '- Map "5 star", "5-star", luxury → categoryId "executive". Deluxe/standard → "deluxe".',
+      '- waypointIds in logical route order (departure → stops). Use stop city ids only.',
+      '- Build one hotelNights row per destination stop; split total nights across stops.',
+      '- For 15+ adults, prefer coaster or hiace vehicle ids from config.',
+      '- Pick hotelId from config when a named hotel matches; otherwise omit hotelId.',
+      '- Use ONLY ids from the provided config lists. Add warnings for assumptions.',
       `Allowed config: ${JSON.stringify(context)}`,
     ].join('\n');
 
@@ -310,7 +404,8 @@ exports.parseClientRequirement = onCall(
     }
 
     try {
-      return JSON.parse(content);
+      const parsed = JSON.parse(content);
+      return normalizeParsedRequirement(parsed, context);
     } catch {
       throw new HttpsError('internal', 'OpenAI returned invalid JSON.');
     }
