@@ -35,6 +35,61 @@ async function assertSignedIn(context) {
   }
 }
 
+async function assertFinanceReader(context) {
+  await assertSignedIn(context);
+  const callerDoc = await db.doc(`users/${context.auth.uid}`).get();
+  const role = callerDoc.data()?.role;
+  if (role === 'viewer') {
+    throw new HttpsError('permission-denied', 'View-only accounts cannot access finance data.');
+  }
+}
+
+async function assertCanManageZohaibPoolExpenses(context) {
+  if (!context.auth?.uid) {
+    throw new HttpsError('unauthenticated', 'You must be signed in.');
+  }
+
+  const callerDoc = await db.doc(`users/${context.auth.uid}`).get();
+  const data = callerDoc.data();
+
+  if (!callerDoc.exists || data?.isActive !== true) {
+    throw new HttpsError('permission-denied', 'Your account is not active.');
+  }
+
+  const role = data?.role;
+  const isAdmin = role === 'admin' || role == null || role === '';
+  const isZohaibManager =
+    role === 'booking_manager' &&
+    (data?.poolId === 'zohaib' || data?.bookedBy === 'Zohaib');
+
+  if (!isAdmin && !isZohaibManager) {
+    throw new HttpsError('permission-denied', 'You cannot manage Zohaib pool expenses.');
+  }
+}
+
+function serializePoolExpense(docSnap) {
+  const data = docSnap.data();
+  return {
+    id: docSnap.id,
+    poolId: data.poolId,
+    description: data.description,
+    expenseDate: data.expenseDate,
+    amount: data.amount,
+  };
+}
+
+function validatePoolExpensePayload(data) {
+  const description = String(data?.description || '').trim();
+  const expenseDate = String(data?.expenseDate || '').trim();
+  const amount = Number(data?.amount);
+
+  if (!description || !expenseDate || !amount || amount <= 0) {
+    throw new HttpsError('invalid-argument', 'Enter a valid date, description, and amount.');
+  }
+
+  return { description, expenseDate, amount };
+}
+
 async function assertAdmin(context) {
   if (!context.auth?.uid) {
     throw new HttpsError('unauthenticated', 'You must be signed in.');
@@ -208,6 +263,72 @@ exports.resetUserPassword = onCall(callableOptions, async (request) => {
 
   const resetLink = await auth.generatePasswordResetLink(email);
   return { resetLink };
+});
+
+exports.listPoolExpenses = onCall(callableOptions, async (request) => {
+  await assertFinanceReader(request);
+
+  const snapshot = await db.collection('poolExpenses').get();
+  return snapshot.docs
+    .map(serializePoolExpense)
+    .filter((item) => item.poolId === 'zohaib')
+    .sort((a, b) => String(b.expenseDate || '').localeCompare(String(a.expenseDate || '')));
+});
+
+exports.createPoolExpense = onCall(callableOptions, async (request) => {
+  await assertCanManageZohaibPoolExpenses(request);
+
+  const payload = validatePoolExpensePayload(request.data);
+  const ref = await db.collection('poolExpenses').add({
+    poolId: 'zohaib',
+    ...payload,
+    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+  });
+
+  return { id: ref.id };
+});
+
+exports.updatePoolExpense = onCall(callableOptions, async (request) => {
+  await assertCanManageZohaibPoolExpenses(request);
+
+  const id = String(request.data?.id || '').trim();
+  if (!id) {
+    throw new HttpsError('invalid-argument', 'Expense id is required.');
+  }
+
+  const ref = db.doc(`poolExpenses/${id}`);
+  const existing = await ref.get();
+  if (!existing.exists || existing.data()?.poolId !== 'zohaib') {
+    throw new HttpsError('not-found', 'Pool expense not found.');
+  }
+
+  const payload = validatePoolExpensePayload(request.data);
+  await ref.update({
+    ...payload,
+    poolId: 'zohaib',
+    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+  });
+
+  return { id };
+});
+
+exports.deletePoolExpense = onCall(callableOptions, async (request) => {
+  await assertCanManageZohaibPoolExpenses(request);
+
+  const id = String(request.data?.id || '').trim();
+  if (!id) {
+    throw new HttpsError('invalid-argument', 'Expense id is required.');
+  }
+
+  const ref = db.doc(`poolExpenses/${id}`);
+  const existing = await ref.get();
+  if (!existing.exists || existing.data()?.poolId !== 'zohaib') {
+    throw new HttpsError('not-found', 'Pool expense not found.');
+  }
+
+  await ref.delete();
+  return { id };
 });
 
 function buildParserContext(config) {

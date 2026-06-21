@@ -11,7 +11,8 @@
     "deploy:rules": "npx firebase-tools deploy --only firestore:rules --project pakrism-bookings",
     "seed:price-planner": "node scripts/seed-price-planner-config.mjs",
     "fix:functions-iam": "bash scripts/fix-functions-build-iam.sh",
-    "deploy:parse-requirement": "npx firebase-tools deploy --only functions:parseClientRequirement --project pakrism-bookings"
+    "deploy:parse-requirement": "npx firebase-tools deploy --only functions:parseClientRequirement --project pakrism-bookings",
+    "deploy:pool-expenses": "npx firebase-tools deploy --only functions:listPoolExpenses,functions:createPoolExpense,functions:updatePoolExpense,functions:deletePoolExpense --project pakrism-bookings"
   },
   "dependencies": {
     "@emotion/react": "^11.14.0",

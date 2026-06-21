@@ -74,15 +74,19 @@ service cloud.firestore {
     }
 
     match /poolExpenses/{expenseId} {
-      allow read: if isAdmin() || isBookingManager();
+      allow read: if isActiveUser();
       allow create: if isAdmin() || (
         isZohaibPoolManager()
         && request.resource.data.poolId == 'zohaib'
       );
-      allow update, delete: if isAdmin() || (
+      allow update: if isAdmin() || (
         isZohaibPoolManager()
         && resource.data.poolId == 'zohaib'
         && request.resource.data.poolId == 'zohaib'
+      );
+      allow delete: if isAdmin() || (
+        isZohaibPoolManager()
+        && resource.data.poolId == 'zohaib'
       );
     }
   }

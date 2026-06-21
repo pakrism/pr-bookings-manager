@@ -41,11 +41,13 @@ import {
   createBooking,
   updateBooking,
   removeBooking,
-  subscribeToPoolExpenses,
+} from '../lib/firestore';
+import {
+  listPoolExpenses,
   createPoolExpense,
   updatePoolExpense,
-  removePoolExpense,
-} from '../lib/firestore';
+  deletePoolExpense,
+} from '../lib/poolExpenseManagement';
 
 export function AppDataProvider({ authUser, userProfile, children }) {
   const navigate = useNavigate();
@@ -110,14 +112,38 @@ export function AppDataProvider({ authUser, userProfile, children }) {
   useEffect(() => {
     const unsubPackages = subscribeToPackages(setPackages);
     const unsubBookings = subscribeToBookings(setBookings);
-    const unsubPoolExpenses = subscribeToPoolExpenses(setPoolExpenses);
     return () => {
       unsubPackages();
       unsubBookings();
-      unsubPoolExpenses();
       bookingSyncStarted.current = false;
     };
   }, []);
+
+  useEffect(() => {
+    if (!authUser?.uid || !capabilities.canViewFinance) {
+      setPoolExpenses([]);
+      return undefined;
+    }
+
+    let cancelled = false;
+
+    async function loadPoolExpenses() {
+      try {
+        const items = await listPoolExpenses();
+        if (!cancelled) setPoolExpenses(items);
+      } catch (error) {
+        console.error('Failed to load pool expenses:', error);
+        // #region agent log
+        fetch('http://127.0.0.1:7697/ingest/1d929821-d065-42ff-8f6e-0c95ee0b2075',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'678e05'},body:JSON.stringify({sessionId:'678e05',location:'AppDataProvider.jsx:loadPoolExpenses',message:'loadPoolExpenses failed',data:{code:error?.code,message:error?.message},timestamp:Date.now(),hypothesisId:'H6',runId:'post-fix'})}).catch(()=>{});
+        // #endregion
+      }
+    }
+
+    loadPoolExpenses();
+    return () => {
+      cancelled = true;
+    };
+  }, [authUser?.uid, capabilities.canViewFinance]);
 
   useEffect(() => {
     if (!bookings.length) return undefined;
@@ -693,7 +719,11 @@ export function AppDataProvider({ authUser, userProfile, children }) {
   }
 
   async function handleCreatePoolExpense(data) {
-    if (!canManageZohaibPoolExpenses(userProfile)) {
+    const canManage = canManageZohaibPoolExpenses(userProfile);
+    // #region agent log
+    fetch('http://127.0.0.1:7697/ingest/1d929821-d065-42ff-8f6e-0c95ee0b2075',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'678e05'},body:JSON.stringify({sessionId:'678e05',location:'AppDataProvider.jsx:handleCreatePoolExpense',message:'handleCreatePoolExpense entry',data:{canManage,role:userProfile?.role,isActive:userProfile?.isActive,poolId:userProfile?.poolId,bookedBy:userProfile?.bookedBy,uid:authUser?.uid},timestamp:Date.now(),hypothesisId:'H2-H4'})}).catch(()=>{});
+    // #endregion
+    if (!canManage) {
       showToast('You do not have permission to manage pool expenses.', 'error');
       return false;
     }
@@ -704,15 +734,19 @@ export function AppDataProvider({ authUser, userProfile, children }) {
     }
     try {
       await createPoolExpense({
-        poolId: 'zohaib',
         description: data.description.trim(),
         expenseDate: data.expenseDate,
         amount,
       });
+      const items = await listPoolExpenses();
+      setPoolExpenses(items);
       showToast('Pool expense added.');
       return true;
     } catch (error) {
-      showToast('Failed to add pool expense.', 'error');
+      // #region agent log
+      fetch('http://127.0.0.1:7697/ingest/1d929821-d065-42ff-8f6e-0c95ee0b2075',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'678e05'},body:JSON.stringify({sessionId:'678e05',location:'AppDataProvider.jsx:handleCreatePoolExpense',message:'handleCreatePoolExpense catch',data:{code:error?.code,message:error?.message},timestamp:Date.now(),hypothesisId:'H1-H5'})}).catch(()=>{});
+      // #endregion
+      showToast(`Failed to add pool expense (${error?.code || 'unknown'}).`, 'error');
       return false;
     }
   }
@@ -729,11 +763,12 @@ export function AppDataProvider({ authUser, userProfile, children }) {
     }
     try {
       await updatePoolExpense(id, {
-        poolId: 'zohaib',
         description: data.description.trim(),
         expenseDate: data.expenseDate,
         amount,
       });
+      const items = await listPoolExpenses();
+      setPoolExpenses(items);
       showToast('Pool expense updated.');
       return true;
     } catch (error) {
@@ -748,7 +783,9 @@ export function AppDataProvider({ authUser, userProfile, children }) {
       return false;
     }
     try {
-      await removePoolExpense(id);
+      await deletePoolExpense(id);
+      const items = await listPoolExpenses();
+      setPoolExpenses(items);
       showToast('Pool expense deleted.');
       return true;
     } catch (error) {
