@@ -7,6 +7,11 @@ import {
   filterBookingsForFinance,
   getLastMonthsBreakdown,
 } from '../utils/revenueMetrics';
+import {
+  filterPoolExpensesByPeriod,
+  sumPoolExpenses,
+  computeZohaibPoolNetShares,
+} from '../utils/poolExpenses';
 
 function percentChange(current, previous) {
   if (!previous || previous === 0) return current > 0 ? 100 : 0;
@@ -17,7 +22,7 @@ function buildSparkline(breakdown, key) {
   return [...breakdown].reverse().map((row) => Number(row[key] || 0));
 }
 
-export function useFinanceData(bookings) {
+export function useFinanceData(bookings, poolExpenses = []) {
   const [preset, setPreset] = useState('this_month');
   const [customStart, setCustomStart] = useState('');
   const [customEnd, setCustomEnd] = useState('');
@@ -63,6 +68,16 @@ export function useFinanceData(bookings) {
     () => computeBookedByTotals(tableBookings),
     [tableBookings]
   );
+
+  const periodPoolExpenses = useMemo(
+    () => filterPoolExpensesByPeriod(poolExpenses, preset, customStart, customEnd),
+    [poolExpenses, preset, customStart, customEnd]
+  );
+
+  const zohaibPoolExpenseSummary = useMemo(() => {
+    const totalExpenses = sumPoolExpenses(periodPoolExpenses);
+    return computeZohaibPoolNetShares(metrics.recipientTotals, totalExpenses);
+  }, [metrics.recipientTotals, periodPoolExpenses]);
 
   const kpiWidgets = useMemo(() => {
     const lastTwo = monthlyBreakdown.slice(0, 2);
@@ -132,6 +147,8 @@ export function useFinanceData(bookings) {
     tableBookings,
     monthlyBreakdown,
     bookedByTotals,
+    periodPoolExpenses,
+    zohaibPoolExpenseSummary,
     kpiWidgets,
   };
 }

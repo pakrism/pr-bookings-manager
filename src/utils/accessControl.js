@@ -176,6 +176,13 @@ export function getManagerPoolId(profile) {
   return null;
 }
 
+export function canManageZohaibPoolExpenses(profile) {
+  const capabilities = getRoleCapabilities(profile);
+  if (capabilities.isAdmin) return true;
+  if (!capabilities.isBookingManager) return false;
+  return getManagerPoolId(profile) === 'zohaib';
+}
+
 export function getDefaultBookedBy(profile) {
   const capabilities = getRoleCapabilities(profile);
   if (capabilities.isBookingManager && capabilities.bookedBy) {

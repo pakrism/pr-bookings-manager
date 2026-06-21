@@ -30,6 +30,7 @@ import {
   getScopedBookings,
   canManagerAccessBooking,
   getDefaultBookedBy,
+  canManageZohaibPoolExpenses,
 } from '../utils/accessControl';
 import {
   subscribeToPackages,
@@ -40,12 +41,17 @@ import {
   createBooking,
   updateBooking,
   removeBooking,
+  subscribeToPoolExpenses,
+  createPoolExpense,
+  updatePoolExpense,
+  removePoolExpense,
 } from '../lib/firestore';
 
 export function AppDataProvider({ authUser, userProfile, children }) {
   const navigate = useNavigate();
   const [packages, setPackages] = useState([]);
   const [bookings, setBookings] = useState([]);
+  const [poolExpenses, setPoolExpenses] = useState([]);
   const [packageForm, setPackageForm] = useState(emptyPackageForm);
   const [bookingForm, setBookingForm] = useState({
     ...emptyBookingForm,
@@ -104,9 +110,11 @@ export function AppDataProvider({ authUser, userProfile, children }) {
   useEffect(() => {
     const unsubPackages = subscribeToPackages(setPackages);
     const unsubBookings = subscribeToBookings(setBookings);
+    const unsubPoolExpenses = subscribeToPoolExpenses(setPoolExpenses);
     return () => {
       unsubPackages();
       unsubBookings();
+      unsubPoolExpenses();
       bookingSyncStarted.current = false;
     };
   }, []);
@@ -684,6 +692,71 @@ export function AppDataProvider({ authUser, userProfile, children }) {
     navigate(`/bookings/${booking.id}/edit`, { state: { fromBookingsList: true } });
   }
 
+  async function handleCreatePoolExpense(data) {
+    if (!canManageZohaibPoolExpenses(userProfile)) {
+      showToast('You do not have permission to manage pool expenses.', 'error');
+      return false;
+    }
+    const amount = Number(data.amount);
+    if (!data.description?.trim() || !data.expenseDate || !amount || amount <= 0) {
+      showToast('Enter a valid date, description, and amount.', 'error');
+      return false;
+    }
+    try {
+      await createPoolExpense({
+        poolId: 'zohaib',
+        description: data.description.trim(),
+        expenseDate: data.expenseDate,
+        amount,
+      });
+      showToast('Pool expense added.');
+      return true;
+    } catch (error) {
+      showToast('Failed to add pool expense.', 'error');
+      return false;
+    }
+  }
+
+  async function handleUpdatePoolExpense(id, data) {
+    if (!canManageZohaibPoolExpenses(userProfile)) {
+      showToast('You do not have permission to manage pool expenses.', 'error');
+      return false;
+    }
+    const amount = Number(data.amount);
+    if (!data.description?.trim() || !data.expenseDate || !amount || amount <= 0) {
+      showToast('Enter a valid date, description, and amount.', 'error');
+      return false;
+    }
+    try {
+      await updatePoolExpense(id, {
+        poolId: 'zohaib',
+        description: data.description.trim(),
+        expenseDate: data.expenseDate,
+        amount,
+      });
+      showToast('Pool expense updated.');
+      return true;
+    } catch (error) {
+      showToast('Failed to update pool expense.', 'error');
+      return false;
+    }
+  }
+
+  async function handleDeletePoolExpense(id) {
+    if (!canManageZohaibPoolExpenses(userProfile)) {
+      showToast('You do not have permission to manage pool expenses.', 'error');
+      return false;
+    }
+    try {
+      await removePoolExpense(id);
+      showToast('Pool expense deleted.');
+      return true;
+    } catch (error) {
+      showToast('Failed to delete pool expense.', 'error');
+      return false;
+    }
+  }
+
   const value = {
     authUser,
     userProfile,
@@ -692,6 +765,7 @@ export function AppDataProvider({ authUser, userProfile, children }) {
     scopedBookings,
     packages,
     bookings,
+    poolExpenses,
     packageForm,
     bookingForm,
     editingPackageId,
@@ -749,6 +823,9 @@ export function AppDataProvider({ authUser, userProfile, children }) {
     handleExportBookingsCsv,
     navigateToBooking,
     navigateToEditBooking,
+    handleCreatePoolExpense,
+    handleUpdatePoolExpense,
+    handleDeletePoolExpense,
     navigate,
   };
 

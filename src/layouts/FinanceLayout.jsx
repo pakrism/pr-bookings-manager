@@ -12,7 +12,7 @@ import FinancePoolCards from '../components/revenue/FinancePoolCards';
 import { FinanceDataContext } from '../context/FinanceDataContext';
 import { useFinanceData } from '../hooks/useFinanceData';
 import { useAppData } from '../context/AppDataContext';
-import { getManagerPoolId } from '../utils/accessControl';
+import { getManagerPoolId, canManageZohaibPoolExpenses } from '../utils/accessControl';
 import { downloadRevenueCsv } from '../utils/exportRevenueCsv';
 
 const POOL_LABELS = {
@@ -26,15 +26,20 @@ export default function FinanceLayout() {
     bookings,
     userProfile,
     capabilities,
+    poolExpenses,
     navigateToBooking,
     handleToggleProfitSharePaid,
     handleTogglePartnerPoolPaid,
     handleBulkUpdatePayouts,
+    handleCreatePoolExpense,
+    handleUpdatePoolExpense,
+    handleDeletePoolExpense,
     showToast,
   } = useAppData();
 
-  const financeData = useFinanceData(bookings);
+  const financeData = useFinanceData(bookings, poolExpenses);
   const managerPoolId = getManagerPoolId(userProfile);
+  const canManagePoolExpenses = canManageZohaibPoolExpenses(userProfile);
   const isDashboard = location.pathname === '/finance' || location.pathname === '/finance/';
   const poolMatch = location.pathname.match(/^\/finance\/(zohaib|pervaiz)$/);
   const activePoolId = poolMatch?.[1] || null;
@@ -51,16 +56,24 @@ export default function FinanceLayout() {
       onTogglePartnerPoolPaid: handleTogglePartnerPoolPaid,
       onBulkUpdatePayouts: handleBulkUpdatePayouts,
       onExportToast: () => showToast('Revenue CSV downloaded.'),
+      canManagePoolExpenses,
+      onCreatePoolExpense: handleCreatePoolExpense,
+      onUpdatePoolExpense: handleUpdatePoolExpense,
+      onDeletePoolExpense: handleDeletePoolExpense,
     }),
     [
       financeData,
       bookings,
       userProfile,
       capabilities,
+      canManagePoolExpenses,
       navigateToBooking,
       handleToggleProfitSharePaid,
       handleTogglePartnerPoolPaid,
       handleBulkUpdatePayouts,
+      handleCreatePoolExpense,
+      handleUpdatePoolExpense,
+      handleDeletePoolExpense,
       showToast,
     ]
   );

@@ -13,6 +13,7 @@ import { db } from './firebase';
 
 const packagesRef = collection(db, 'packages');
 const bookingsRef = collection(db, 'bookings');
+const poolExpensesRef = collection(db, 'poolExpenses');
 
 function omitUndefinedFields(data) {
   return Object.fromEntries(
@@ -99,5 +100,42 @@ export async function updateBooking(id, data) {
 
 export async function removeBooking(id) {
   const ref = doc(db, 'bookings', id);
+  await deleteDoc(ref);
+}
+
+export function subscribeToPoolExpenses(callback) {
+  const q = query(poolExpensesRef, orderBy('expenseDate', 'desc'));
+  return onSnapshot(
+    q,
+    (snapshot) => {
+      const items = snapshot.docs.map((item) => ({
+        id: item.id,
+        ...item.data(),
+      }));
+      callback(items);
+    },
+    (error) => logSnapshotError('poolExpenses', error)
+  );
+}
+
+export async function createPoolExpense(data) {
+  await addDoc(poolExpensesRef, {
+    ...data,
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  });
+}
+
+export async function updatePoolExpense(id, data) {
+  const ref = doc(db, 'poolExpenses', id);
+  const { createdAt, ...rest } = data;
+  await updateDoc(ref, {
+    ...omitUndefinedFields(rest),
+    updatedAt: serverTimestamp(),
+  });
+}
+
+export async function removePoolExpense(id) {
+  const ref = doc(db, 'poolExpenses', id);
   await deleteDoc(ref);
 }

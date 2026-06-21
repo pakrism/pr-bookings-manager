@@ -30,6 +30,16 @@ service cloud.firestore {
       return userDoc().data.bookedBy;
     }
 
+    function managerPoolId() {
+      return userDoc().data.poolId;
+    }
+
+    function isZohaibPoolManager() {
+      return isBookingManager() && (
+        managerPoolId() == 'zohaib' || managerBookedBy() == 'Zohaib'
+      );
+    }
+
     match /users/{userId} {
       allow read: if isAdmin() || (signedIn() && request.auth.uid == userId);
       allow write: if false;
@@ -61,6 +71,19 @@ service cloud.firestore {
     match /pricePlanner/{doc} {
       allow read: if signedIn();
       allow write: if isAdmin();
+    }
+
+    match /poolExpenses/{expenseId} {
+      allow read: if isAdmin() || isBookingManager();
+      allow create: if isAdmin() || (
+        isZohaibPoolManager()
+        && request.resource.data.poolId == 'zohaib'
+      );
+      allow update, delete: if isAdmin() || (
+        isZohaibPoolManager()
+        && resource.data.poolId == 'zohaib'
+        && request.resource.data.poolId == 'zohaib'
+      );
     }
   }
 }
