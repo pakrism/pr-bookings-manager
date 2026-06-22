@@ -24,6 +24,7 @@ import ProfitShareBreakdown from '../profit/ProfitShareBreakdown';
 import PayoutSelectionBar from './PayoutSelectionBar';
 import BulkPayoutConfirmDialog from './BulkPayoutConfirmDialog';
 import PoolExpensesTab from './PoolExpensesTab';
+import ZohaibPoolSummary from './ZohaibPoolSummary';
 import { formatCurrency } from '../../utils/helpers';
 import { formatMonthLabel } from '../../utils/datePeriods';
 import {
@@ -228,108 +229,78 @@ export default function FinancePoolView({
 
   return (
     <Box>
-      <Card sx={{ p: 2, mb: 2 }}>
-        <Stack
-          direction={{ xs: 'column', md: 'row' }}
-          justifyContent="space-between"
-          alignItems={{ xs: 'flex-start', md: 'center' }}
-          spacing={2}
-        >
-          <Box sx={{ flex: 1 }}>
-            <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
-              <i className="ri-user-star-line" style={{ fontSize: 22, color: '#58C71B' }} />
-              <Typography variant="h6" fontWeight={700}>
-                {formatCurrency(metrics.poolTotals?.[poolId] ?? 0)}
-              </Typography>
-              <Chip size="small" label="50% pool" variant="outlined" />
-            </Stack>
-            <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-              {getPoolSplitLabel(poolId)}
-            </Typography>
-            <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-              <Chip
-                size="small"
-                icon={<i className="ri-checkbox-circle-line" />}
-                label={`Partner paid ${formatCurrency(partnerSummary.paidTotal)}`}
-                color="success"
-                variant="outlined"
-              />
-              <Chip
-                size="small"
-                icon={<i className="ri-time-line" />}
-                label={`Pending ${formatCurrency(partnerSummary.unpaidTotal)}`}
-                color="warning"
-                variant="outlined"
-              />
-              {recipientList.map((recipient) => (
-                <Chip
-                  key={recipient.shareKey}
-                  size="small"
-                  label={`${recipient.label} ${formatCurrency(recipient.total)}`}
-                  variant="outlined"
-                />
-              ))}
-            </Stack>
-            {expenseSummary && expenseSummary.totalExpenses > 0 && (
-              <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{ mt: 1 }}>
-                <Chip
-                  size="small"
-                  color="error"
-                  variant="outlined"
-                  label={`Pool expenses −${formatCurrency(expenseSummary.totalExpenses)}`}
-                />
-                <Chip
-                  size="small"
-                  color="info"
-                  variant="outlined"
-                  label={`Net after expenses ${formatCurrency(expenseSummary.poolNet)}`}
-                />
-                {recipientList.map((recipient) => {
-                  if (recipient.recipientKey === 'sohaib') {
-                    return (
-                      <Chip
-                        key={`${recipient.shareKey}-net`}
-                        size="small"
-                        label={`${recipient.label} ${formatCurrency(recipient.total)}`}
-                        variant="outlined"
-                      />
-                    );
-                  }
-                  const netEntry =
-                    recipient.recipientKey === 'zohaib'
-                      ? expenseSummary.zohaib
-                      : recipient.recipientKey === 'fawad'
-                        ? expenseSummary.fawad
-                        : null;
-                  if (!netEntry) return null;
-                  return (
-                    <Chip
-                      key={`${recipient.shareKey}-net`}
-                      size="small"
-                      label={`${recipient.label} ${formatCurrency(netEntry.gross)} → ${formatCurrency(netEntry.net)}`}
-                      variant="outlined"
-                    />
-                  );
-                })}
+      {isZohaibPool ? (
+        <ZohaibPoolSummary
+          poolGross={expenseSummary?.poolGross ?? metrics.poolTotals?.[poolId] ?? 0}
+          expenseSummary={expenseSummary}
+          periodPoolExpenses={periodPoolExpenses}
+          partnerSummary={partnerSummary}
+          partnerPaidPercent={partnerPaidPercent}
+          canManagePoolExpenses={canManagePoolExpenses}
+          onAddExpense={() => setActiveTab('expenses')}
+          onExport={handlePoolExport}
+        />
+      ) : (
+        <Card sx={{ p: 2, mb: 2 }}>
+          <Stack
+            direction={{ xs: 'column', md: 'row' }}
+            justifyContent="space-between"
+            alignItems={{ xs: 'flex-start', md: 'center' }}
+            spacing={2}
+          >
+            <Box sx={{ flex: 1 }}>
+              <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
+                <i className="ri-user-star-line" style={{ fontSize: 22, color: '#58C71B' }} />
+                <Typography variant="h6" fontWeight={700}>
+                  {formatCurrency(metrics.poolTotals?.[poolId] ?? 0)}
+                </Typography>
+                <Chip size="small" label="50% pool" variant="outlined" />
               </Stack>
-            )}
-            <Box sx={{ mt: 1.5, maxWidth: 360 }}>
-              <Typography variant="caption" color="text.secondary">
-                Partner settlement {partnerPaidPercent}%
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                {getPoolSplitLabel(poolId)}
               </Typography>
-              <LinearProgress
-                variant="determinate"
-                value={partnerPaidPercent}
-                sx={{ mt: 0.5, height: 6, borderRadius: 999 }}
-              />
+              <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                <Chip
+                  size="small"
+                  icon={<i className="ri-checkbox-circle-line" />}
+                  label={`Partner paid ${formatCurrency(partnerSummary.paidTotal)}`}
+                  color="success"
+                  variant="outlined"
+                />
+                <Chip
+                  size="small"
+                  icon={<i className="ri-time-line" />}
+                  label={`Pending ${formatCurrency(partnerSummary.unpaidTotal)}`}
+                  color="warning"
+                  variant="outlined"
+                />
+                {recipientList.map((recipient) => (
+                  <Chip
+                    key={recipient.shareKey}
+                    size="small"
+                    label={`${recipient.label} ${formatCurrency(recipient.total)}`}
+                    variant="outlined"
+                  />
+                ))}
+              </Stack>
+              <Box sx={{ mt: 1.5, maxWidth: 360 }}>
+                <Typography variant="caption" color="text.secondary">
+                  Partner settlement {partnerPaidPercent}%
+                </Typography>
+                <LinearProgress
+                  variant="determinate"
+                  value={partnerPaidPercent}
+                  sx={{ mt: 0.5, height: 6, borderRadius: 999 }}
+                />
+              </Box>
             </Box>
-          </Box>
-          <OutlineButton type="button" onClick={handlePoolExport}>
-            <i className="ri-download-2-line" style={{ marginRight: 6 }} />
-            Export pool CSV
-          </OutlineButton>
-        </Stack>
-      </Card>
+            <OutlineButton type="button" onClick={handlePoolExport}>
+              <i className="ri-download-2-line" style={{ marginRight: 6 }} />
+              Export pool CSV
+            </OutlineButton>
+          </Stack>
+        </Card>
+      )}
 
       <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 2 }}>
         <Tabs value={activeTab} onChange={(_e, v) => setActiveTab(v)}>
@@ -393,17 +364,6 @@ export default function FinancePoolView({
               </TableBody>
             </Table>
           </TableContainer>
-          {expenseSummary && expenseSummary.totalExpenses > 0 && (
-            <Box sx={{ px: 2, py: 1.5, borderTop: 1, borderColor: 'divider', bgcolor: 'action.hover' }}>
-              <Typography variant="subtitle2" fontWeight={700} sx={{ mb: 0.5 }}>
-                After pool expenses (period)
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                Sohaib {formatCurrency(expenseSummary.sohaib.net)} (unchanged) · Zohaib{' '}
-                {formatCurrency(expenseSummary.zohaib.net)} · Fawad {formatCurrency(expenseSummary.fawad.net)}
-              </Typography>
-            </Box>
-          )}
         </Card>
       )}
 
