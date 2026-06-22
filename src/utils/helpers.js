@@ -3,6 +3,10 @@ export function formatCurrency(value) {
   return `Rs ${number.toLocaleString()}`;
 }
 
+export function formatCurrencyWhole(value) {
+  return formatCurrency(Math.round(Number(value || 0)));
+}
+
 export function splitLinesToBullets(text = '') {
   return text
     .split('\n')
